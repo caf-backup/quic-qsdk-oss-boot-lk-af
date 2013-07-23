@@ -33,7 +33,6 @@
 #include <app.h>
 #include <debug.h>
 #include <arch/arm.h>
-#include <dev/udc.h>
 #include <string.h>
 #include <limits.h>
 #include <kernel/thread.h>
@@ -276,14 +275,6 @@ static char lk_splash_buf[LK_SPLASH_CMD_SIZE];
 static int auth_kernel_img = 0;
 
 static device_info device = {DEVICE_MAGIC, 0, 0};
-
-static struct udc_device surf_udc_device = {
-	.vendor_id	= 0x18d1,
-	.product_id	= 0xD00D,
-	.version_id	= 0x0100,
-	.manufacturer	= "Google",
-	.product	= "Android",
-};
 
 struct atag_ptbl_entry
 {
@@ -2183,7 +2174,6 @@ void aboot_fastboot_register_commands(void)
 void aboot_init(const struct app_descriptor *app)
 {
 	unsigned reboot_mode = 0;
-	unsigned usb_init = 0;
 	unsigned sz = 0;
 
 	/* Setup page size information for nand/emmc reads */
@@ -2208,7 +2198,6 @@ void aboot_init(const struct app_descriptor *app)
 
 	target_serialno((unsigned char *) sn_buf);
 	dprintf(SPEW,"serial number: %s\n",sn_buf);
-	surf_udc_device.serialno = sn_buf;
 
 	/* Check if we should do something other than booting up */
 	if (keys_get_state(KEY_HOME) != 0)
@@ -2266,19 +2255,14 @@ void aboot_init(const struct app_descriptor *app)
 	}
 	dprintf(CRITICAL, "ERROR: Could not do normal boot. Reverting "
 		"to fastboot mode.\n");
-
 fastboot:
-
-	target_fastboot_init();
-
-	if(!usb_init)
-		udc_init(&surf_udc_device);
-
+	/* We are here means regular boot did not happen. Start fastboot. */
+	/* register aboot specific fastboot commands */
 	aboot_fastboot_register_commands();
+	/* dump partition table for debug info */
 	partition_dump();
 	sz = target_get_max_flash_size();
 	fastboot_init(target_get_scratch_address(), sz);
-	udc_start();
 }
 
 APP_START(aboot)
