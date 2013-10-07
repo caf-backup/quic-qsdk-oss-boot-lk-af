@@ -1682,7 +1682,7 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 #endif
 
 	fastboot_okay("");
-	udc_stop();
+	fastboot_stop();
 
 	memmove((void*) hdr->ramdisk_addr, ptr + page_size + kernel_actual, hdr->ramdisk_size);
 	memmove((void*) hdr->kernel_addr, ptr + page_size, hdr->kernel_size);
@@ -2064,7 +2064,7 @@ void cmd_flash(const char *arg, void *data, unsigned sz)
 void cmd_continue(const char *arg, void *data, unsigned sz)
 {
 	fastboot_okay("");
-	udc_stop();
+	fastboot_stop();
 	if (target_is_emmc_boot())
 	{
 		boot_linux_from_mmc();
