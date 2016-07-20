@@ -1083,3 +1083,29 @@ fail:
 	free(new_buffer);
 	return ret;
 }
+
+#if defined(WITH_LIB_CONSOLE)
+#include <lib/console.h>
+
+static int cmd_part(int argc, const cmd_args *argv)
+{
+	unsigned i;
+
+	printf("No.: Type   Start      End        Size       Name\n");
+
+	for (i = 0; i < partition_count; i++) {
+		printf("%3d: 0x%04x 0x%08llx 0x%08llx 0x%08llx %s\n", i,
+			partition_entries[i].dtype,
+			partition_entries[i].first_lba,
+			partition_entries[i].last_lba,
+			partition_entries[i].size,
+			partition_entries[i].name);
+	}
+
+	return 0;
+}
+
+STATIC_COMMAND_START
+        { "part", "Print partition table", &cmd_part },
+STATIC_COMMAND_END(part);
+#endif /* defined(WITH_LIB_CONSOLE) */
