@@ -2207,6 +2207,8 @@ void * get_device_tree_ptr(struct dt_table *table)
 	return NULL;
 }
 
+#define DTB_PAD_SIZE	1024
+
 int update_device_tree(const void * fdt, char *cmdline,
 					   void *ramdisk, unsigned ramdisk_size)
 {
@@ -2221,6 +2223,14 @@ int update_device_tree(const void * fdt, char *cmdline,
 	if(ret)
 	{
 		dprintf(CRITICAL, "Invalid device tree header \n");
+		return ret;
+	}
+
+	/* Add padding to make space for new nodes and properties. */
+	ret = fdt_open_into(fdt, fdt, fdt_totalsize(fdt) + DTB_PAD_SIZE);
+	if (ret!= 0)
+	{
+		dprintf(CRITICAL, "Failed to move/resize dtb buffer: %d\n", ret);
 		return ret;
 	}
 
@@ -2239,6 +2249,11 @@ int update_device_tree(const void * fdt, char *cmdline,
 
 	/* Get offset of the chosen node */
 	offset = fdt_path_offset(fdt, "/chosen");
+	if (offset < 0)
+	{
+		dprintf(CRITICAL, "Could not find chosen node.\n");
+		return ret;
+	}
 
 	/* Adding the cmdline to the chosen node */
 	final_cmdline = update_cmdline(cmdline);
@@ -2246,8 +2261,7 @@ int update_device_tree(const void * fdt, char *cmdline,
 	if(ret)
 	{
 		dprintf(CRITICAL, "ERROR: Cannot update chosen node [bootargs]\n");
-		//return ret;
-		ret = 0;
+		return ret;
 	}
 
 	if (!ramdisk || ramdisk_size == 0)
