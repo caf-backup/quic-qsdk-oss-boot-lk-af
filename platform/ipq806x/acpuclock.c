@@ -36,14 +36,6 @@
 #include <clock.h>
 #include <board.h>
 #include <smem.h>
-#include <mipi_dsi.h>
-
-static const dsi_config_table_type dsi_pll_lut[] =
-{
-	{216216000, 3, DSI_VIDEO_DST_FORMAT_RGB888,0x00001000,0x00000004,
-			  0x00000b01, 0x80ff0005, 0x00007003, 0x000001fb,
-			  0x00000005, 0xFA000003, 0x000003f7, 0x000000a5}
-};
 
 /* Set rate and enable the clock */
 static void clock_config(uint32_t ns, uint32_t md, uint32_t ns_addr, uint32_t md_addr)
@@ -128,7 +120,7 @@ void clock_config_uart_dm(uint8_t id)
 	char gsbi_p_clk_id[64];
 
 	snprintf(gsbi_uart_clk_id, 64,"gsbi%u_uart_clk", id);
-	clk_get_set_enable(gsbi_uart_clk_id, 1843200, 1);
+	clk_get_set_enable(gsbi_uart_clk_id, 7372800, 1);
 
 	snprintf(gsbi_p_clk_id, 64,"gsbi%u_pclk", id);
 	clk_get_set_enable(gsbi_p_clk_id, 0, 1);
@@ -147,108 +139,13 @@ void clock_config_i2c(uint8_t id, uint32_t freq)
 	clk_get_set_enable(gsbi_p_clk_id, 0, 1);
 }
 
-/* Turn on MDP related clocks and pll's for MDP */
-void mdp_clock_init(void)
-{
-	/* Set MDP clock to 200MHz */
-	clk_get_set_enable("mdp_clk", 200000000, 1);
-
-	/* Seems to lose pixels without this from status 0x051E0048 */
-	clk_get_set_enable("lut_mdp", 0, 1);
-}
-
-/* Initialize all clocks needed by Display */
-void mmss_clock_init(void)
-{
-	/* Configure Pixel clock */
-	config_mmss_clk(PIXEL_NS_VAL, PIXEL_MD_VAL, PIXEL_CC_VAL,
-			DSI_PIXEL_NS_REG, DSI_PIXEL_MD_REG, DSI_PIXEL_CC_REG);
-
-	/* Configure DSI clock */
-	config_mmss_clk(DSI_NS_VAL, DSI_MD_VAL, DSI_CC_VAL, DSI_NS_REG,
-			DSI_MD_REG, DSI_CC_REG);
-
-	/* Configure Byte clock */
-	config_mmss_clk(BYTE_NS_VAL, 0x0, BYTE_CC_VAL, DSI1_BYTE_NS_REG, 0x0,
-			DSI1_BYTE_CC_REG);
-
-	/* Configure ESC clock */
-	config_mmss_clk(ESC_NS_VAL, 0x0, ESC_CC_VAL, DSI1_ESC_NS_REG, 0x0,
-			DSI1_ESC_CC_REG);
-}
-
-/* Initialize all clocks needed by Display */
-void adp_mmss_clock_init(struct msm_panel_info *pinfo)
-{
-	bool found = false;
-	for (int i = 0; i < (sizeof(dsi_pll_lut)/ sizeof(dsi_pll_lut[0])); i++) {
-		if (dsi_pll_lut[i].dsi_pix_clk == pinfo->clk_rate &&
-		    dsi_pll_lut[i].dsi_num_lanes == pinfo->mipi.num_of_lanes &&
-		    dsi_pll_lut[i].dsi_col_frmt == pinfo->mipi.dst_format) {
-			/* Configure Pixel clock */
-			config_mmss_clk(dsi_pll_lut[i].dsi_pixel_ns,
-				dsi_pll_lut[i].dsi_pixel_md, dsi_pll_lut[i].dsi_pixel_cc,
-				DSI_PIXEL_NS_REG, DSI_PIXEL_MD_REG, DSI_PIXEL_CC_REG);
-
-			/* Configure DSI clock */
-			config_mmss_clk(dsi_pll_lut[i].dsi_ns,
-				dsi_pll_lut[i].dsi_md, dsi_pll_lut[i].dsi_cc,
-				DSI_NS_REG, DSI_MD_REG, DSI_CC_REG);
-
-			/* Configure Byte clock */
-			config_mmss_clk(dsi_pll_lut[i].dsi_byte_ns,
-				0x0, dsi_pll_lut[i].dsi_byte_cc,
-				DSI1_BYTE_NS_REG, 0x0, DSI1_BYTE_CC_REG);
-
-			/* Configure ESC clock */
-			config_mmss_clk(dsi_pll_lut[i].dsi_esc_ns,
-				0x0, dsi_pll_lut[i].dsi_esc_cc,
-				DSI1_ESC_NS_REG, 0x0, DSI1_ESC_CC_REG);
-			found = true;
-			break;
-		}
-	}
-	if (!found) {
-		dprintf(CRITICAL,
-		    "DSI LUT match not found for clock rate: %d, num of lanes: %d, \
-		     format: %d, please update DSI_PLL_LUT!\n",
-		    pinfo->clk_rate, pinfo->mipi.num_of_lanes, pinfo->mipi.dst_format);
-	}
-}
-
-void liquid_mmss_clock_init(void)
-{
-	/* Configure Pixel clock = 78.75 MHZ */
-	config_mmss_clk(0x2003, 0x01FB, 0x0005,
-			DSI_PIXEL_NS_REG, DSI_PIXEL_MD_REG, DSI_PIXEL_CC_REG);
-
-	/* Configure DSI clock = 236.25 MHZ */
-	config_mmss_clk(0x03, 0x03FB, 0x05,
-			DSI_NS_REG, DSI_MD_REG, DSI_CC_REG);
-
-	/* Configure Byte clock = 59.06 MHZ */
-	config_mmss_clk(0x0B01, 0x0, 0x80ff0025,
-			DSI1_BYTE_NS_REG, 0x0, DSI1_BYTE_CC_REG);
-
-	/* Configure ESC clock = 13.5 MHZ */
-	config_mmss_clk(0x1B00, 0x0, 0x005,
-			DSI1_ESC_NS_REG, 0x0, DSI1_ESC_CC_REG);
-}
-
-void mmss_clock_disable(void)
-{
-	writel(0x0, DSI1_BYTE_CC_REG);
-	writel(0x0, DSI_PIXEL_CC_REG);
-	writel(0x0, DSI1_ESC_CC_REG);
-
-	/* Disable root clock */
-	writel(0x0, DSI_CC_REG);
-}
-
 /* Intialize MMC clock */
-void clock_init_mmc(uint32_t interface)
+void clock_init_mmc(uint32_t id)
 {
-	/* Nothing to be done. */
+	char sdc_clk_id[64];
+
+	snprintf(sdc_clk_id, sizeof(sdc_clk_id),"sdc%u_clk", id);
+	clk_get_set_enable(sdc_clk_id, 400000, 1);
 }
 
 /* Configure MMC clock */
@@ -256,7 +153,6 @@ void clock_config_mmc(uint32_t interface, uint32_t freq)
 {
 	char sdc_clk[64];
 	unsigned rate;
-	uint32_t reg = 0;
 
 	snprintf(sdc_clk, 64, "sdc%u_clk", interface);
 
@@ -266,14 +162,15 @@ void clock_config_mmc(uint32_t interface, uint32_t freq)
 	switch(freq)
 	{
 	case MMC_CLK_400KHZ:
-		rate = 144000;
+		rate = 400000;
 		break;
 	case MMC_CLK_48MHZ:
 	case MMC_CLK_50MHZ: /* Max supported is 48MHZ */
-		rate = 48000000;
+		rate = 52000000;
 		break;
 	default:
 		ASSERT(0);
+		return;
 
 	};
 
@@ -319,7 +216,7 @@ void ce_async_reset()
 	/* Add a small delay between switching the
 	 * async intput from high to low
 	 */
-	 udelay(2);
+	udelay(2);
 
 	/* Disable Async reset bit for HCLK for CE1 */
 	writel((1 << 4), CE1_HCLK_CTL_REG);
