@@ -3309,3 +3309,115 @@ mmc_boot_bam_setup_desc(unsigned int *data_ptr,
 }
 
 #endif
+
+
+
+#if defined(WITH_LIB_CONSOLE)
+#include <lib/console.h>
+
+#define mmc_r_help	"read dest-addr start size\n"
+#define mmc_w_help	"write src-addr start size\n"
+#define mmc_e_help	"erase start size\n"
+#define mmc_help	mmc_r_help mmc_w_help mmc_e_help
+
+#define uarg(x)		(argv[x].u)
+#define ullarg(x)	((unsigned long long)argv[x].u)
+
+static int cmd_mmc(int argc, const cmd_args *argv)
+{
+	unsigned long long start;
+	unsigned size;
+	unsigned *ptr;
+
+	int m = -1;	/* multiplier */
+
+	/* size is in terms of bytes ... */
+	if (!strcmp(argv[1].str, "bread") ||
+	    !strcmp(argv[1].str, "bwrite") ||
+	    !strcmp(argv[1].str, "berase")) {
+		strcpy(argv[1].str, argv[1].str + 1);
+		m = 1;
+	}
+
+	if (strcmp(argv[1].str, "read") == 0) {
+		if (argc != 5) {
+			printf(mmc_r_help);
+			return -1;
+		}
+
+		if (m == -1)
+			m = mmc_card.rd_block_len;
+
+		start	= ullarg(3) * m;
+		size	= uarg(4) * m;
+		ptr	= (unsigned *)uarg(2);
+
+		if (size % 512)
+			printf("Warning: Will round-up size to %u\n",
+					mmc_card.rd_block_len);
+
+		printf("mmc_read(0x%x, 0x%x, 0x%x)\n", uarg(3), uarg(2), uarg(4));
+
+		if (mmc_read(start, ptr, size) != 0) {
+			printf("Read failed\n");
+			return -1;
+		}
+
+	} else if (strcmp(argv[1].str, "write") == 0) {
+		if (argc != 5) {
+			printf(mmc_w_help);
+			return -1;
+		}
+
+		if (m == -1)
+			m = mmc_card.wr_block_len;
+
+		start	= ullarg(3) * m;
+		size	= uarg(4) * m;
+		ptr	= (unsigned *)uarg(2);
+
+		if (size % 512)
+			printf("Warning: Will round-up size to %u\n",
+					mmc_card.wr_block_len);
+
+		printf("mmc_write(0x%x, 0x%x, 0x%x)\n", uarg(3), uarg(4), uarg(2));
+
+		if (mmc_write(start, size, ptr) != 0) {
+			printf("Write failed\n");
+			return -1;
+		}
+	} else if (strcmp(argv[1].str, "erase") == 0) {
+		if (argc != 4) {
+			printf(mmc_e_help);
+			return -1;
+		}
+
+		if (m == -1)
+			m = 512;
+
+		start	= ullarg(2) * m;
+		size	= uarg(3) * m;
+
+		if (size % 512)
+			printf("Warning: Will round-up size to 512\n");
+
+		printf("mmc_erase_card(0x%x, 0x%x)\n", uarg(2), uarg(3));
+
+		if (mmc_erase_card(start, size) != 0) {
+			printf("Erase failed\n");
+			return -1;
+		}
+	} else {
+		printf(argv[1].str);
+		printf(mmc_help);
+		return -1;
+	}
+
+	return 0;
+}
+
+STATIC_COMMAND_START
+        { "mmc", mmc_help, &cmd_mmc },
+STATIC_COMMAND_END(mmc);
+
+#endif /* defined(WITH_LIB_CONSOLE) */
