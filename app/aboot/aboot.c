@@ -623,8 +623,12 @@ void boot_linux(void *kernel, unsigned *tags,
 	generate_atags(tags, final_cmdline, ramdisk, ramdisk_size);
 #endif
 
-	dprintf(INFO, "booting linux @ %p, ramdisk @ %p (%d)\n",
-		entry, ramdisk, ramdisk_size);
+	dprintf(INFO, "booting linux @ %p", entry);
+
+	if (ramdisk && ramdisk_size)
+		dprintf(INFO, ", ramdisk @ %p (%d)", ramdisk, ramdisk_size);
+
+	dprintf(INFO, "\n");
 
 	enter_critical_section();
 	/* do any platform specific cleanup before kernel entry */
@@ -2246,6 +2250,9 @@ int update_device_tree(const void * fdt, char *cmdline,
 		ret = 0;
 	}
 
+	if (!ramdisk || ramdisk_size == 0)
+		goto no_initrd;
+
 	/* Adding the initrd-start to the chosen node */
 	ret = fdt_setprop_cell(fdt, offset, "linux,initrd-start", ramdisk);
 	if(ret)
@@ -2262,6 +2269,7 @@ int update_device_tree(const void * fdt, char *cmdline,
 		return ret;
 	}
 
+no_initrd:
 	fdt_pack(fdt);
 
 	return ret;
