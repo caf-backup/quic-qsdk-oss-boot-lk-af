@@ -60,6 +60,24 @@ ifeq ($(PLATFORM),msm8960)
 			$(LOCAL_DIR)/mdp_lcdc.o
 endif
 
+ifeq ($(PLATFORM),ipq806x)
+	OBJS += $(LOCAL_DIR)/i2c_qup.o \
+			$(LOCAL_DIR)/uart_dm.o \
+			$(LOCAL_DIR)/qgic.o \
+			$(LOCAL_DIR)/crypto4_eng.o \
+			$(LOCAL_DIR)/crypto_hash.o \
+			$(LOCAL_DIR)/certificate.o \
+			$(LOCAL_DIR)/image_verify.o \
+			$(LOCAL_DIR)/scm.o \
+			$(LOCAL_DIR)/interrupts.o \
+			$(LOCAL_DIR)/clock-local.o \
+			$(LOCAL_DIR)/clock.o \
+			$(LOCAL_DIR)/clock_pll.o \
+			$(LOCAL_DIR)/board.o \
+			$(LOCAL_DIR)/display.o \
+			$(LOCAL_DIR)/timer.o
+endif
+
 ifeq ($(PLATFORM),copper)
 	OBJS += $(LOCAL_DIR)/qgic.o \
 			$(LOCAL_DIR)/qtimer.o \
