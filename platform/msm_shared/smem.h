@@ -310,8 +310,22 @@ typedef enum {
 
 	SMEM_BOOT_INFO_FOR_APPS = 418,
 
+	SMEM_BOOT_FLASH_TYPE = 421,
+
+	SMEM_BOOT_FLASH_INDEX = 422,
+
+	SMEM_BOOT_FLASH_CHIP_SELECT = 423,
+
+	SMEM_BOOT_FLASH_BLOCK_SIZE = 424,
+
+	SMEM_MACHID_INFO_LOCATION = 425,
+
+	SMEM_BOOT_DUALPARTINFO = 427,
+
+	SMEM_PARTITION_TABLE_OFFSET = 428,
+
 	SMEM_FIRST_VALID_TYPE = SMEM_SPINLOCK_ARRAY,
-	SMEM_LAST_VALID_TYPE = SMEM_BOOT_INFO_FOR_APPS,
+	SMEM_LAST_VALID_TYPE = SMEM_PARTITION_TABLE_OFFSET,
 
 	SMEM_MAX_SIZE = SMEM_BOOT_INFO_FOR_APPS + 1,
 } smem_mem_type_t;
@@ -425,5 +439,10 @@ struct smem_ptable {
 
 unsigned smem_read_alloc_entry_offset(smem_mem_type_t type, void *buf, int len, int offset);
 int smem_ram_ptable_init(struct smem_ram_ptable *smem_ram_ptable);
+
+struct smem_machid_info {
+	unsigned format;
+	unsigned machid;
+};
 
 #endif				/* __PLATFORM_MSM_SHARED_SMEM_H */
