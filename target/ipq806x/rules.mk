@@ -7,10 +7,10 @@ PLATFORM := ipq806x
 MEMBASE := 0x41200000 # SDRAM
 MEMSIZE := 0x00100000 # 1MB
 
-BASE_ADDR        := 0x41500000	# banana
-#BASE_ADDR        := 0x42000000	# coconut
+#BASE_ADDR        := 0x41500000	# banana
+BASE_ADDR        := 0x42000000	# coconut
 
-TAGS_ADDR        := BASE_ADDR+0x00000100
+TAGS_ADDR        := 0x46000000
 KERNEL_ADDR      := BASE_ADDR+0x00008000
 RAMDISK_ADDR     := BASE_ADDR+0x01000000
 SCRATCH_ADDR     := 0x50000000
@@ -18,7 +18,8 @@ SCRATCH_ADDR     := 0x50000000
 DEFINES += EMMC_SPLASH_ENABLED=1
 
 MODULES += \
-	lib/ptable
+	lib/ptable \
+	lib/libfdt
 
 DEFINES += \
 	MEMSIZE=$(MEMSIZE) \
@@ -32,4 +33,4 @@ DEFINES += \
 OBJS += \
 	$(LOCAL_DIR)/boards.o \
 	$(LOCAL_DIR)/init.o \
-	$(LOCAL_DIR)/atags.o
+	$(LOCAL_DIR)/meminfo.o
