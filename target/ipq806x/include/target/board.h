@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014, 2016 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -32,39 +32,193 @@
 
 #include <board.h>
 
-#define MPLATFORM_VERSION 3
-#define MPLATFORM() (board_platform_ver()== MPLATFORM_VERSION)
+#define MACH_TYPE_IPQ806X_RUMI3		3961
+#define MACH_TYPE_IPQ806X_TB726		3962
+#define MACH_TYPE_IPQ806X_AP144		3963
+#define MACH_TYPE_IPQ806X_DB149		4699
+#define MACH_TYPE_IPQ806X_DB149_1XX	4811
+#define MACH_TYPE_IPQ806X_DB147		4703
+#define MACH_TYPE_IPQ806X_AP148		4704
+#define MACH_TYPE_IPQ806X_AP145		4810
+#define MACH_TYPE_IPQ806X_AP145_1XX	4812
+#define MACH_TYPE_IPQ806X_AP148_1XX	4913
+#define MACH_TYPE_IPQ806X_DB149_2XX	4917
+#define MACH_TYPE_IPQ806X_STORM		4936
+#define MACH_TYPE_IPQ806X_AP160		4971
+#define MACH_TYPE_IPQ806X_AP160_2XX	4991
+#define MACH_TYPE_IPQ806X_AP161		4972
+#define MACH_TYPE_IPQ806X_AK01_1XX	5020
 
-/* 8960 */
-#define LINUX_MACHTYPE_8960_SIM     3230
-#define LINUX_MACHTYPE_8960_RUMI3   3231
-#define LINUX_MACHTYPE_8960_CDP     3396
-#define LINUX_MACHTYPE_8960_MTP     3397
-#define LINUX_MACHTYPE_8960_FLUID   3398
-#define LINUX_MACHTYPE_8960_APQ     3399
-#define LINUX_MACHTYPE_8960_LIQUID  3535
+typedef struct {
+	int gpio;
+	unsigned int func;
+	unsigned int out;
+	unsigned int pull;
+	unsigned int drvstr;
+	unsigned int oe;
+} gpio_func_data_t;
 
-/* 8627 */
-#define LINUX_MACHTYPE_8627_CDP     3861
-#define LINUX_MACHTYPE_8627_MTP     3862
+typedef struct {
+	unsigned int m_value;
+	unsigned int n_value;
+	unsigned int d_value;
+} clk_mnd_t;
 
-/* 8930 */
-#define LINUX_MACHTYPE_8930_CDP     3727
-#define LINUX_MACHTYPE_8930_MTP     3728
-#define LINUX_MACHTYPE_8930_FLUID   3729
-#define LINUX_MACHTYPE_8930_EVT     4558
+/* SPI Mode */
 
-/* 8064 */
-#define LINUX_MACHTYPE_8064_SIM     3572
-#define LINUX_MACHTYPE_8064_RUMI3   3679
-#define LINUX_MACHTYPE_8064_CDP     3948
-#define LINUX_MACHTYPE_8064_MTP     3949
-#define LINUX_MACHTYPE_8064_LIQUID  3951
-#define LINUX_MACHTYPE_8064_MPQ_CDP 3993
-#define LINUX_MACHTYPE_8064_MPQ_HRD 3994
-#define LINUX_MACHTYPE_8064_MPQ_DTV 3995
-#define LINUX_MACHTYPE_8064_ADP_2   4839
-#define LINUX_MACHTYPE_8064_ADP_2_ES2   4909
-#define LINUX_MACHTYPE_8064_ADP_2_ES2P5   7801
+typedef enum {
+	NOR_SPI_MODE_0,
+	NOR_SPI_MODE_1,
+	NOR_SPI_MODE_2,
+	NOR_SPI_MODE_3,
+} spi_mode;
+
+/* SPI GSBI Bus number */
+
+typedef enum {
+	GSBI_BUS_5 = 0,
+	GSBI_BUS_6,
+	GSBI_BUS_7,
+} spi_gsbi_bus_num;
+
+/* SPI Chip selects */
+
+typedef enum {
+	SPI_CS_0 ,
+	SPI_CS_1,
+	SPI_CS_2,
+	SPI_CS_3,
+} spi_cs;
+
+/* Flash Types */
+
+typedef enum {
+	ONLY_NAND,
+	ONLY_NOR,
+	NAND_NOR,
+	NOR_MMC,
+} flash_desc;
+
+#define NO_OF_DBG_UART_GPIOS		2
+#define NO_OF_I2C_GPIOS			2
+#define MAX_CONF_NAME			5
+
+
+#define SPI_NOR_FLASH_VENDOR_MICRON	0x1
+#define SPI_NOR_FLASH_VENDOR_SPANSION	0x2
+
+#define S17_RGMII0_1_8V			(1 << 19)
+#define S17_RGMII1_1_8V			(1 << 18)
+
+typedef enum {
+	PHY_INTERFACE_MODE_MII,
+	PHY_INTERFACE_MODE_GMII,
+	PHY_INTERFACE_MODE_SGMII,
+	PHY_INTERFACE_MODE_TBI,
+	PHY_INTERFACE_MODE_RMII,
+	PHY_INTERFACE_MODE_RGMII,
+	PHY_INTERFACE_MODE_RGMII_ID,
+	PHY_INTERFACE_MODE_RGMII_RXID,
+	PHY_INTERFACE_MODE_RGMII_TXID,
+	PHY_INTERFACE_MODE_RTBI,
+	PHY_INTERFACE_MODE_XGMII,
+	PHY_INTERFACE_MODE_QSGMII,
+	PHY_INTERFACE_MODE_NONE /* Must be last */
+} phy_interface_t;
+
+#define MDIO_NAME_LEN 32
+
+/* SPI parameters */
+typedef struct {
+	spi_mode mode;
+	spi_gsbi_bus_num bus_number;
+	spi_cs chip_select;
+	int vendor;
+} spinorflash_params_t;
+
+typedef struct {
+	uint count;
+	uint8_t addr[7];
+} ipq_gmac_phy_addr_t;
+
+typedef struct {
+	uint base;
+	int unit;
+	uint is_macsec;
+	uint mac_pwr0;
+	uint mac_pwr1;
+	uint mac_conn_to_phy;
+	phy_interface_t phy;
+	ipq_gmac_phy_addr_t phy_addr;
+	const char phy_name[MDIO_NAME_LEN];
+} ipq_gmac_board_cfg_t;
+
+typedef struct {
+	uint base;
+	uint gsbi_base;
+	uint uart_dm_base;
+	clk_mnd_t uart_mnd_value;
+	gpio_func_data_t *dbg_uart_gpio;
+} uart_cfg_t;
+
+#define IPQ_GMAC_NMACS		4
+#define IPQ_UART_MAX		2
+
+#ifdef CONFIG_IPQ806X_PCI
+#define PCI_MAX_DEVICES		3
+
+typedef struct {
+	gpio_func_data_t 		*pci_rst_gpio;
+	uint32_t			parf;
+	uint32_t			elbi;
+	uint32_t			pcie20;
+	uint32_t			axi_bar_start;
+	uint32_t			axi_bar_size;
+	uint32_t			pcie_rst;
+	clk_offset_t			*pci_clks;
+	uint32_t			axi_conf;
+	int 				linkup;
+} pcie_params_t;
+
+void board_pci_init(void);
+#endif /* CONFIG_IPQ806X_PCI */
+
+typedef struct {
+	unsigned int machid;
+	unsigned int ddr_size;
+	unsigned int clk_dummy;
+	clk_mnd_t usb_core_mnd_value;
+	clk_mnd_t usb_utmi_mnd_value;
+	unsigned int gmac_gpio_count;
+	gpio_func_data_t *gmac_gpio;
+	ipq_gmac_board_cfg_t gmac_cfg[IPQ_GMAC_NMACS];
+	uart_cfg_t uart_cfg[IPQ_UART_MAX];
+	uart_cfg_t *console_uart_cfg;
+	gpio_func_data_t *switch_gpio;
+	gpio_func_data_t *reset_switch_gpio;
+	gpio_func_data_t *reset_ak01_gmac_gpio;
+	gpio_func_data_t *ar8033_gpio;
+	flash_desc flashdesc;
+	spinorflash_params_t flash_param;
+#ifdef CONFIG_IPQ806X_I2C
+	unsigned int i2c_gsbi;
+	unsigned int i2c_gsbi_base;
+	clk_mnd_t i2c_mnd_value;
+	gpio_func_data_t i2c_gpio[NO_OF_I2C_GPIOS];
+#endif
+#ifdef CONFIG_IPQ806X_PCI
+	pcie_params_t	pcie_cfg[PCI_MAX_DEVICES];
+	unsigned int wifi_pcie_power_gpio_cnt;
+	gpio_func_data_t *wifi_pcie_power_gpio[PCI_MAX_DEVICES];
+#endif
+	gpio_func_data_t *emmc_gpio;
+	unsigned int emmc_gpio_count;
+
+	const char *dtb_config_name[MAX_CONF_NAME];
+} board_ipq806x_params_t;
+
+extern board_ipq806x_params_t *gboard_param;
+
+board_ipq806x_params_t *get_board_param(unsigned int machid);
 
 #endif
