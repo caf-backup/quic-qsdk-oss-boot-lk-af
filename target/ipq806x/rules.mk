@@ -18,6 +18,7 @@ SCRATCH_ADDR     := 0x50000000
 DEFINES += EMMC_SPLASH_ENABLED=1
 
 MODULES += \
+	lib/zlib_inflate \
 	lib/ptable \
 	lib/libfdt
 
