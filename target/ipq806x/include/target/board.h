@@ -107,6 +107,9 @@ typedef enum {
 #define SPI_NOR_FLASH_VENDOR_MICRON	0x1
 #define SPI_NOR_FLASH_VENDOR_SPANSION	0x2
 
+#define TCSR_USB_CONTROLLER_TYPE_SEL	0x1A4000B0
+#define USB_CONT_TYPE_USB_20	0x2
+
 #define S17_RGMII0_1_8V			(1 << 19)
 #define S17_RGMII1_1_8V			(1 << 18)
 

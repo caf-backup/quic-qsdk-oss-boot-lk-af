@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, Google Inc.
+ * Copyright (c) 2008, 2016 Google Inc.
  * All rights reserved.
  *
  * Copyright (c) 2009-2013, The Linux Foundation. All rights reserved.
@@ -682,6 +682,15 @@ int udc_init(struct udc_device *dev)
 	 * LDO, PHY configuration etc. needed before USB port can be used.
 	 */
 	target_usb_init();
+
+	/* Select PHY reference clock */
+	writel((readl(USB_HS_PHY_CTRL)) | USB_HS_PHY_CTRL_CLK_SEL,
+		USB_HS_PHY_CTRL);
+
+	/* Reset PHY */
+	writel(readl(USB_HS_PHY_CTRL) | 1, USB_HS_PHY_CTRL);
+	thread_sleep(10);
+	writel(readl(USB_HS_PHY_CTRL) & (~0x1), USB_HS_PHY_CTRL);
 
 	/* USB_OTG_HS_AHB_BURST */
 	writel(0x0, USB_SBUSCFG);

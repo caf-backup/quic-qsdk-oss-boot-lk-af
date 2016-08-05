@@ -71,6 +71,9 @@
 #define USB_ENDPTSTAT        (MSM_USB_BASE + 0x01B8)
 #define USB_ENDPTCOMPLETE    (MSM_USB_BASE + 0x01BC)
 #define USB_ENDPTCTRL(n)     (MSM_USB_BASE + 0x01C0 + (4 * (n)))
+#define USB_HS_PHY_CTRL      (MSM_USB_BASE + 0x0240)
+
+#define USB_HS_PHY_CTRL_CLK_SEL	0xB070
 
 /* ULPI registers */
 #define ULPI_MISC_A_READ         0x96

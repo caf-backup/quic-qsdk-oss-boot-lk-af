@@ -227,6 +227,8 @@ int target_cont_splash_screen()
 /* Do target specific usb initialization */
 void target_usb_init(void)
 {
+	/* Select USB 2.0 */
+	writel(USB_CONT_TYPE_USB_20, TCSR_USB_CONTROLLER_TYPE_SEL);
 }
 
 void target_mmc_init(unsigned char slot, unsigned int base)
