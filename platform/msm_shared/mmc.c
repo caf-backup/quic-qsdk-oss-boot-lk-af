@@ -2248,6 +2248,12 @@ void mmc_display_csd(void)
 	dprintf(SPEW, "temp_wp: %d\n", mmc_card.csd.temp_wp);
 }
 
+__WEAK int target_mmc_init(unsigned char slot, unsigned int base)
+{
+	return 0;
+}
+
+
 /*
  * Entry point to MMC boot process
  */
@@ -2262,6 +2268,8 @@ unsigned int mmc_boot_main(unsigned char slot, unsigned int base)
 
 	mmc_slot = slot;
 	mmc_boot_mci_base = base;
+
+	target_mmc_init(slot, base);
 
 	/* Initialize necessary data structure and enable/set clock and power */
 	dprintf(SPEW, " Initializing MMC host data structure and clock!\n");

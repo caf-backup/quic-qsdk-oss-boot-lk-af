@@ -1,10 +1,10 @@
-# top level project rules for the msm8960_virtio project
+# top level project rules for the ipq806x project
 #
 LOCAL_DIR := $(GET_LOCAL_DIR)
 
-TARGET := msm8960
+TARGET := ipq806x
 
-MODULES += app/aboot
+MODULES += app/shell app/aboot
 
 ifeq ($(TARGET_BUILD_VARIANT),user)
 DEBUG := 0
