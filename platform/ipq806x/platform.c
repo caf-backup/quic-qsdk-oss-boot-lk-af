@@ -50,7 +50,6 @@ extern void mipi_dsi_shutdown(void);
 extern void msm_clocks_init(void);
 
 static uint32_t ticks_per_sec = 0;
-static uint8_t display_enabled = 0;
 
 #define MB (1024*1024)
 
@@ -95,22 +94,12 @@ void platform_early_init(void)
 
 void platform_init(void)
 {
-	dprintf(INFO, "platform_init()\n");
+	dprintf(INFO, "%s()\n", __func__);
 }
 
 void platform_uninit(void)
 {
-#if DISPLAY_SPLASH_SCREEN
-	display_shutdown();
-#endif
-
-	if (MPLATFORM()) {
-		/* set GPIO_84 to LOW when leave LK */
-		gpio_set(84, 1);
-	}
-	platform_uninit_timer();
-	/* Set the BOOT_DONE flag in PM8921 */
-	pm8921_boot_done();
+	dprintf(INFO, "%s()\n", __func__);
 }
 
 /* Setup memory for this platform */
@@ -139,16 +128,22 @@ void platform_init_timer(void)
 	/* disable timer */
 	writel(0, DGT_ENABLE);
 
-	/* DGT uses LPXO source which is 27MHz.
+	/* DGT uses LPXO source which is 25MHz.
 	 * Set clock divider to 4.
 	 */
 	writel(3, DGT_CLK_CTL);
 
-	ticks_per_sec = 6750000;	/* (27 MHz / 4) */
+	ticks_per_sec = 6250000;	/* (25 MHz / 4) */
 }
 
 /* Returns timer ticks per sec */
 uint32_t platform_tick_rate(void)
 {
 	return ticks_per_sec;
+}
+
+int keys_get_state(uint16_t code)
+{
+	/* return zero for any key since there is no keypad */
+	return 0;
 }

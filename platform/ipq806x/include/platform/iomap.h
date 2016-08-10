@@ -102,4 +102,8 @@
 #define NSS_GMAC2_BASE			0x37400000
 #define NSS_GMAC3_BASE			0x37600000
 
+#define GMAC_CORE_RESET(n)	((void *)(0x903CBC + ((n) * 0x20)))
+#define GMACSEC_CORE_RESET(n)	((void *)(0x903E28 + ((n - 1) * 4)))
+#define GMAC_AHB_RESET		0x903E24
+
 #endif
