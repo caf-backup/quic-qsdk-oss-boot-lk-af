@@ -65,6 +65,8 @@
 
 #include "scm.h"
 
+#define critical(...)	dprintf(CRITICAL, __VA_ARGS__)
+
 /* fastboot command function pointer */
 typedef void (*fastboot_cmd_fn) (const char *, void *, unsigned);
 
@@ -85,6 +87,10 @@ struct fastboot_cmd_desc {
 
 #ifndef MEMSIZE
 #define MEMSIZE 1024*1024
+#endif
+
+#ifndef SCRATCH_AREA_SIZE
+#define SCRATCH_AREA_SIZE	(16 * 1024 * 1024)
 #endif
 
 #define MAX_TAGS_SIZE   1024
@@ -719,6 +725,83 @@ static void verify_signed_bootimg(uint32_t bootimg_addr, uint32_t bootimg_size)
 	}
 }
 
+__WEAK int
+is_gzip_package(void *tmp, unsigned len)
+{
+	return 0;
+}
+
+__WEAK int
+decompress(unsigned char *in_buf, unsigned int in_len,
+		unsigned char *out_buf, unsigned int out_buf_len,
+		unsigned int *pos, unsigned int *out_len)
+{
+	return -1;
+}
+
+/*
+ * read_kernel:
+ *	Read image from flash (if necessary) and uncompress it if
+ *	it is a compressed image. If the image is a signed image,
+ *	the caller would have read the image for authentication.
+ *	In that case, this function doesn't read and uses the caller
+ *	provided input buffer.
+ *
+ *	off:	Flash offset of the image to be read
+ *	hdr:	Boot image header
+ *	in :	If not NULL, caller has read the image, else read from flash
+ *	len:	length of the image
+ *
+ * Return:
+ *	Success	:	Zero
+ *	Fail	:	Non-Zero
+ */
+
+int read_kernel(unsigned long long off, struct boot_img_hdr *hdr,
+		void *in, unsigned len)
+{
+	int ret;
+	unsigned char *tmp = in ? in : (void *)SCRATCH_ADDR;
+	unsigned char *dst = (void *)hdr->kernel_addr;
+
+	if (!in && mmc_read(off, tmp, page_size)) {
+		critical("ERROR: Cannot read kernel image (1)\n");
+		return -1;
+	}
+
+	if (!is_gzip_package(tmp, len)) {
+		if (in) {
+			memmove((void*)hdr->kernel_addr, in, len);
+		} else if (mmc_read(off, dst, len)) {
+			critical("ERROR: Cannot read kernel image (2)\n");
+			return -1;
+		}
+		return 0;
+	}
+
+	if (!in && mmc_read(off, tmp, len)) {
+		critical("ERROR: Cannot read kernel image (3)\n");
+		return -1;
+	}
+
+	critical("decompress(%p, 0x%x, %p, 0x%x, %p, %p)",
+			tmp, hdr->kernel_size, dst, (16 << 20), NULL, NULL);
+	ret = decompress(
+		tmp,			/* Input gzip file */
+		hdr->kernel_size,	/* Input file length */
+		dst,			/* Dst address */
+		SCRATCH_AREA_SIZE,	/* Dst length */
+		NULL,			/* end of gzip file */
+		NULL);			/* decomp'ed data length */
+
+	if (ret)
+		critical(" = %d failed\n", ret);
+	else
+		critical("passed\n");
+
+	return ret;
+}
+
 int boot_linux_from_mmc(void)
 {
 	struct boot_img_hdr *hdr = (void*) buf;
@@ -869,7 +952,9 @@ int boot_linux_from_mmc(void)
 		verify_signed_bootimg(image_addr, imagesize_actual);
 
 		/* Move kernel, ramdisk and device tree to correct address */
-		memmove((void*) hdr->kernel_addr, (char *)(image_addr + page_size), hdr->kernel_size);
+		if (read_kernel(0ull, hdr, (char *)(image_addr + page_size), hdr->kernel_size))
+			return -1;
+
 		memmove((void*) hdr->ramdisk_addr, (char *)(image_addr + page_size + kernel_actual), hdr->ramdisk_size);
 
 		#if DEVICE_TREE
@@ -915,9 +1000,9 @@ int boot_linux_from_mmc(void)
 		offset = page_size;
 
 		/* Load kernel */
-		if (mmc_read(ptn + offset, (void *)hdr->kernel_addr, kernel_actual)) {
+		if (read_kernel(ptn + offset, hdr, NULL, kernel_actual)) {
 			dprintf(CRITICAL, "ERROR: Cannot read kernel image\n");
-					return -1;
+			return -1;
 		}
 		offset += kernel_actual;
 
@@ -1133,7 +1218,9 @@ int boot_linux_from_flash(void)
 		verify_signed_bootimg(image_addr, imagesize_actual);
 
 		/* Move kernel and ramdisk to correct address */
-		memmove((void*) hdr->kernel_addr, (char *)(image_addr + page_size), hdr->kernel_size);
+		if (read_kernel(0ull, hdr, (char *)(image_addr + page_size), hdr->kernel_size))
+			return -1;
+
 		memmove((void*) hdr->ramdisk_addr, (char *)(image_addr + page_size + kernel_actual), hdr->ramdisk_size);
 #if DEVICE_TREE
 		/* Validate and Read device device tree in the "tags_add */
@@ -1166,7 +1253,7 @@ int boot_linux_from_flash(void)
 		dprintf(INFO, "Loading boot image (%d): start\n",
 				kernel_actual + ramdisk_actual);
 
-		if (flash_read(ptn, offset, (void *)hdr->kernel_addr, kernel_actual)) {
+		if (read_kernel(ptn + offset, hdr, NULL, kernel_actual)) {
 			dprintf(CRITICAL, "ERROR: Cannot read kernel image\n");
 			return -1;
 		}
