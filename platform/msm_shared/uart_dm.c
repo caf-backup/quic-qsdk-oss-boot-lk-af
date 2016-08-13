@@ -360,7 +360,8 @@ msm_boot_uart_dm_write(uint32_t base, char *data, unsigned int num_of_chars)
 void uart_dm_init(uint8_t id, uint32_t gsbi_base, uint32_t uart_dm_base)
 {
 	static uint8_t port = 0;
-	char *data = "Android Bootloader - UART_DM Initialized!!!\n";
+	char data[] = "Android Bootloader - UART_DM Initialized!!!\n"
+			"\t\t[" __DATE__ " " __TIME__ "]\n";
 
 	/* Configure the uart clock */
 	clock_config_uart_dm(id);
@@ -390,7 +391,7 @@ void uart_dm_init(uint8_t id, uint32_t gsbi_base, uint32_t uart_dm_base)
 	/* Intialize UART_DM */
 	msm_boot_uart_dm_init(uart_dm_base);
 
-	msm_boot_uart_dm_write(uart_dm_base, data, 44);
+	msm_boot_uart_dm_write(uart_dm_base, data, sizeof(data));
 
 	ASSERT(port < ARRAY_SIZE(port_lookup));
 	port_lookup[port++] = uart_dm_base;

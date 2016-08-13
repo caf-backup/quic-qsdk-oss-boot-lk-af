@@ -95,14 +95,36 @@ struct fastboot_cmd_desc {
 #if DEVICE_TREE
 #define DEV_TREE_SUCCESS        0
 #define DEV_TREE_MAGIC          "QCDT"
-#define DEV_TREE_VERSION        1
+#define DEV_TREE_VERSION        3
 #define DEV_TREE_HEADER_SIZE    12
 
 
-struct dt_entry{
+struct dt_entry_v1 {
 	uint32_t platform_id;
 	uint32_t variant_id;
 	uint32_t soc_rev;
+	uint32_t offset;
+	uint32_t size;
+};
+
+struct dt_entry_v2 {
+	uint32_t platform_id;
+	uint32_t variant_id;
+	uint32_t subtype_id;
+	uint32_t soc_rev;
+	uint32_t offset;
+	uint32_t size;
+};
+
+struct dt_entry_v3 {
+	uint32_t platform_id;
+	uint32_t variant_id;
+	uint32_t subtype_id;
+	uint32_t soc_rev;
+	uint32_t pmic0;
+	uint32_t pmic1;
+	uint32_t pmic2;
+	uint32_t pmic3;
 	uint32_t offset;
 	uint32_t size;
 };
@@ -113,7 +135,109 @@ struct dt_table{
 	unsigned num_entries;
 };
 
-struct dt_entry * get_device_tree_ptr(struct dt_table *);
+size_t sizeof_dt_entry(struct dt_table *t)
+{
+	switch (t->version) {
+	case 1: return sizeof(struct dt_entry_v1);
+	case 2: return sizeof(struct dt_entry_v2);
+	case 3: return sizeof(struct dt_entry_v3);
+	}
+	return 0xffffffff;
+}
+
+inline uint32_t dt_platform_id(struct dt_table *t, void *ptr)
+{
+	switch (t->version) {
+	case 1: return ((struct dt_entry_v1 *)ptr)->platform_id;
+	case 2: return ((struct dt_entry_v2 *)ptr)->platform_id;
+	case 3: return ((struct dt_entry_v3 *)ptr)->platform_id;
+	}
+	return 0xffffffff;
+}
+
+inline uint32_t dt_variant_id(struct dt_table *t, void *ptr)
+{
+	switch (t->version) {
+	case 1: return ((struct dt_entry_v1 *)ptr)->variant_id;
+	case 2: return ((struct dt_entry_v2 *)ptr)->variant_id;
+	case 3: return ((struct dt_entry_v3 *)ptr)->variant_id;
+	}
+	return 0xffffffff;
+}
+
+inline uint32_t dt_subtype_id(struct dt_table *t, void *ptr)
+{
+	switch (t->version) {
+	case 2: return ((struct dt_entry_v2 *)ptr)->subtype_id;
+	case 3: return ((struct dt_entry_v3 *)ptr)->subtype_id;
+	}
+	return 0xffffffff;
+}
+
+inline uint32_t dt_soc_rev(struct dt_table *t, void *ptr)
+{
+	switch (t->version) {
+	case 1: return ((struct dt_entry_v1 *)ptr)->soc_rev;
+	case 2: return ((struct dt_entry_v2 *)ptr)->soc_rev;
+	case 3: return ((struct dt_entry_v3 *)ptr)->soc_rev;
+	}
+	return 0xffffffff;
+}
+
+inline uint32_t dt_pmic0(struct dt_table *t, void *ptr)
+{
+	switch (t->version) {
+	case 3: return ((struct dt_entry_v3 *)ptr)->pmic0;
+	}
+	return 0xffffffff;
+}
+
+inline uint32_t dt_pmic1(struct dt_table *t, void *ptr)
+{
+	switch (t->version) {
+	case 3: return ((struct dt_entry_v3 *)ptr)->pmic1;
+	}
+	return 0xffffffff;
+}
+
+inline uint32_t dt_pmic2(struct dt_table *t, void *ptr)
+{
+	switch (t->version) {
+	case 3: return ((struct dt_entry_v3 *)ptr)->pmic2;
+	}
+	return 0xffffffff;
+}
+
+inline uint32_t dt_pmic3(struct dt_table *t, void *ptr)
+{
+	switch (t->version) {
+	case 3: return ((struct dt_entry_v3 *)ptr)->pmic3;
+	}
+	return 0xffffffff;
+}
+
+inline uint32_t dt_offset(struct dt_table *t, void *ptr)
+{
+	switch (t->version) {
+	case 1: return ((struct dt_entry_v1 *)ptr)->offset;
+	case 2: return ((struct dt_entry_v2 *)ptr)->offset;
+	case 3: return ((struct dt_entry_v3 *)ptr)->offset;
+	}
+	return 0xffffffff;
+}
+
+inline uint32_t dt_size(struct dt_table *t, void *ptr)
+{
+	switch (t->version) {
+	case 1: return ((struct dt_entry_v1 *)ptr)->size;
+	case 2: return ((struct dt_entry_v2 *)ptr)->size;
+	case 3: return ((struct dt_entry_v3 *)ptr)->size;
+	}
+	return 0xffffffff;
+}
+
+
+void * get_device_tree_ptr(struct dt_table *);
 int update_device_tree(const void *, char *, void *, unsigned);
 #endif
 
@@ -499,8 +623,12 @@ void boot_linux(void *kernel, unsigned *tags,
 	generate_atags(tags, final_cmdline, ramdisk, ramdisk_size);
 #endif
 
-	dprintf(INFO, "booting linux @ %p, ramdisk @ %p (%d)\n",
-		entry, ramdisk, ramdisk_size);
+	dprintf(INFO, "booting linux @ %p", entry);
+
+	if (ramdisk && ramdisk_size)
+		dprintf(INFO, ", ramdisk @ %p (%d)", ramdisk, ramdisk_size);
+
+	dprintf(INFO, "\n");
 
 	enter_critical_section();
 	/* do any platform specific cleanup before kernel entry */
@@ -604,11 +732,12 @@ int boot_linux_from_mmc(void)
 	unsigned kernel_actual;
 	unsigned ramdisk_actual;
 	unsigned imagesize_actual;
+	unsigned dt_actual;
 	unsigned second_actual = 0;
 
 #if DEVICE_TREE
 	struct dt_table *table;
-	struct dt_entry *dt_entry_ptr;
+	void *dt_entry_ptr;
 	unsigned dt_table_offset;
 #endif
 
@@ -620,6 +749,10 @@ int boot_linux_from_mmc(void)
 	}
 	if (!boot_into_recovery) {
 		index = partition_get_index("boot");
+
+		if (index == INVALID_PTN)
+			index = partition_get_index("0:HLOS");
+
 		ptn = partition_get_offset(index);
 		if(ptn == 0) {
 			dprintf(CRITICAL, "ERROR: No boot partition found\n");
@@ -653,7 +786,7 @@ int boot_linux_from_mmc(void)
 	/* Get virtual addresses since the hdr saves physical addresses. */
 	hdr->kernel_addr = VA((addr_t)(hdr->kernel_addr));
 	hdr->ramdisk_addr = VA((addr_t)(hdr->ramdisk_addr));
-	hdr->tags_addr = VA((addr_t)(hdr->tags_addr));
+	hdr->tags_addr = VA((addr_t)TAGS_ADDR);
 
 	kernel_actual  = ROUND_TO_PAGE(hdr->kernel_size,  page_mask);
 	ramdisk_actual = ROUND_TO_PAGE(hdr->ramdisk_size, page_mask);
@@ -747,10 +880,10 @@ int boot_linux_from_mmc(void)
 			memmove((void *) dt_buf, (char *)dt_table_offset, page_size);
 
 			/* Restriction that the device tree entry table should be less than a page*/
-			ASSERT(((table->num_entries * sizeof(struct dt_entry))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
+			ASSERT(((table->num_entries * sizeof_dt_entry(table)) + DEV_TREE_HEADER_SIZE) < hdr->page_size);
 
 			/* Validate the device tree table header */
-			if((table->magic != DEV_TREE_MAGIC) && (table->version != DEV_TREE_VERSION)) {
+			if((table->magic != DEV_TREE_MAGIC) && (table->version > DEV_TREE_VERSION)) {
 				dprintf(CRITICAL, "ERROR: Cannot validate Device Tree Table \n");
 				return -1;
 			}
@@ -762,13 +895,13 @@ int boot_linux_from_mmc(void)
 			}
 
 			/* Validate and Read device device tree in the "tags_add */
-			if (check_aboot_addr_range_overlap(hdr->tags_addr, dt_entry_ptr->size))
+			if (check_aboot_addr_range_overlap(hdr->tags_addr, dt_size(table, dt_entry_ptr)))
 			{
 				dprintf(CRITICAL, "Device tree addresses overlap with aboot addresses.\n");
 				return -1;
 			}
 
-			memmove((void *)hdr->tags_addr, (char *)dt_table_offset + dt_entry_ptr->offset, dt_entry_ptr->size);
+			memmove((void *)hdr->tags_addr, (char *)dt_table_offset + dt_offset(table, dt_entry_ptr), dt_size(table, dt_entry_ptr));
 		}
 		#endif
 	}
@@ -818,7 +951,7 @@ int boot_linux_from_mmc(void)
 			table = (struct dt_table*) dt_buf;
 
 			/* Restriction that the device tree entry table should be less than a page*/
-			ASSERT(((table->num_entries * sizeof(struct dt_entry))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
+			ASSERT(((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
 
 			/* Validate the device tree table header */
 			if((table->magic != DEV_TREE_MAGIC) && (table->version != DEV_TREE_VERSION)) {
@@ -833,14 +966,14 @@ int boot_linux_from_mmc(void)
 			}
 
 			/* Validate and Read device device tree in the "tags_add */
-			if (check_aboot_addr_range_overlap(hdr->tags_addr, dt_entry_ptr->size))
+			if (check_aboot_addr_range_overlap(hdr->tags_addr, dt_size(table, dt_entry_ptr)))
 			{
 				dprintf(CRITICAL, "Device tree addresses overlap with aboot addresses.\n");
 				return -1;
 			}
 
-			if(mmc_read(ptn + offset + dt_entry_ptr->offset,
-						 (void *)hdr->tags_addr, dt_entry_ptr->size)) {
+			if(mmc_read(ptn + offset + dt_offset(table, dt_entry_ptr),
+						 (void *)hdr->tags_addr, dt_size(table, dt_entry_ptr))) {
 				dprintf(CRITICAL, "ERROR: Cannot read device tree\n");
 				return -1;
 			}
@@ -878,12 +1011,15 @@ int boot_linux_from_flash(void)
 	struct ptable *ptable;
 	unsigned offset = 0;
 	const char *cmdline;
+	struct dt_table *table;
+	void *dt_entry_ptr;
 
 	unsigned char *image_addr = 0;
 	unsigned kernel_actual;
 	unsigned ramdisk_actual;
 	unsigned imagesize_actual;
 	unsigned second_actual;
+	unsigned dt_actual;
 
 	if (target_is_emmc_boot()) {
 		hdr = (struct boot_img_hdr *)EMMC_BOOT_IMG_HEADER_ADDR;
@@ -1001,7 +1137,7 @@ int boot_linux_from_flash(void)
 		memmove((void*) hdr->ramdisk_addr, (char *)(image_addr + page_size + kernel_actual), hdr->ramdisk_size);
 #if DEVICE_TREE
 		/* Validate and Read device device tree in the "tags_add */
-		if (check_aboot_addr_range_overlap(hdr->tags_addr, dt_entry_ptr->size))
+		if (check_aboot_addr_range_overlap(hdr->tags_addr, dt_size(table, dt_entry_ptr)))
 		{
 			dprintf(CRITICAL, "Device tree addresses overlap with aboot addresses.\n");
 			return -1;
@@ -1063,7 +1199,7 @@ int boot_linux_from_flash(void)
 			table = (struct dt_table*) dt_buf;
 
 			/* Restriction that the device tree entry table should be less than a page*/
-			ASSERT(((table->num_entries * sizeof(struct dt_entry))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
+			ASSERT(((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
 
 			/* Validate the device tree table header */
 			if((table->magic != DEV_TREE_MAGIC) && (table->version != DEV_TREE_VERSION)) {
@@ -1072,21 +1208,21 @@ int boot_linux_from_flash(void)
 			}
 
 			/* Calculate the offset of device tree within device tree table */
-			if((dt_entry_ptr = dev_tree_get_entry_ptr(table)) == NULL){
+			if((dt_entry_ptr = get_device_tree_ptr(table)) == NULL){
 				dprintf(CRITICAL, "ERROR: Getting device tree address failed\n");
 				return -1;
 			}
 
 			/* Validate and Read device device tree in the "tags_add */
-			if (check_aboot_addr_range_overlap(hdr->tags_addr, dt_entry_ptr->size))
+			if (check_aboot_addr_range_overlap(hdr->tags_addr, dt_size(table, dt_entry_ptr)))
 			{
 				dprintf(CRITICAL, "Device tree addresses overlap with aboot addresses.\n");
 				return -1;
 			}
 
 			/* Read device device tree in the "tags_add */
-			if(flash_read(ptn, offset + dt_entry_ptr->offset,
-						 (void *)hdr->tags_addr, dt_entry_ptr->size)) {
+			if(flash_read(ptn, offset + dt_offset(table, dt_entry_ptr),
+						 (void *)hdr->tags_addr, dt_size(table, dt_entry_ptr))) {
 				dprintf(CRITICAL, "ERROR: Cannot read device tree\n");
 				return -1;
 			}
@@ -1280,7 +1416,7 @@ int copy_dtb(uint8_t *boot_image_start)
 	uint32 dt_image_offset = 0;
 	uint32_t n;
 	struct dt_table *table;
-	struct dt_entry *dt_entry_ptr;
+	void *dt_entry_ptr;
 	unsigned dt_table_offset;
 
 	struct boot_img_hdr *hdr = (struct boot_img_hdr *) (boot_image_start);
@@ -1307,7 +1443,7 @@ int copy_dtb(uint8_t *boot_image_start)
 		table = boot_image_start + dt_image_offset;
 
 		/* Restriction that the device tree entry table should be less than a page*/
-		ASSERT(((table->num_entries * sizeof(struct dt_entry))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
+		ASSERT(((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
 
 		/* Validate the device tree table header */
 		if((table->magic != DEV_TREE_MAGIC) && (table->version != DEV_TREE_VERSION)) {
@@ -1322,7 +1458,7 @@ int copy_dtb(uint8_t *boot_image_start)
 		}
 
 		/* Validate and Read device device tree in the "tags_add */
-		if (check_aboot_addr_range_overlap(hdr->tags_addr, dt_entry_ptr->size))
+		if (check_aboot_addr_range_overlap(hdr->tags_addr, dt_size(table, dt_entry_ptr)))
 		{
 			dprintf(CRITICAL, "Device tree addresses overlap with aboot addresses.\n");
 			return -1;
@@ -1330,14 +1466,20 @@ int copy_dtb(uint8_t *boot_image_start)
 
 		/* Read device device tree in the "tags_add */
 		memmove((void*) hdr->tags_addr,
-				boot_image_start + dt_image_offset +  dt_entry_ptr->offset,
-				dt_entry_ptr->size);
+				boot_image_start + dt_image_offset + dt_offset(table, dt_entry_ptr),
+				dt_size(table, dt_entry_ptr));
 	}
 
 	/* Everything looks fine. Return success. */
 	return 0;
 }
 #endif
+
+__WEAK void *
+dev_tree_appended(void *kernel_addr, void *tags_addr, unsigned kernel_size)
+{
+	return NULL;
+}
 
 void cmd_boot(const char *arg, void *data, unsigned sz)
 {
@@ -1347,6 +1489,7 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 	uint32_t dt_actual = 0;
 	struct boot_img_hdr *hdr;
 	char *ptr = ((char*) data);
+	int ret, dtb_copied;
 
 	if (sz < sizeof(hdr)) {
 		fastboot_fail("invalid bootimage header");
@@ -1428,6 +1571,7 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 		if (!dtb) {
 			fastboot_fail("dtb not found");
 			return;
+		}
 	}
 #endif
 
@@ -2035,24 +2179,35 @@ APP_START(aboot)
 APP_END
 
 #if DEVICE_TREE
-struct dt_entry * get_device_tree_ptr(struct dt_table *table)
+void * get_device_tree_ptr(struct dt_table *table)
 {
 	unsigned i;
-	struct dt_entry *dt_entry_ptr;
+	char *dt_entry_ptr;
+	int size;
 
-	dt_entry_ptr = (char *)table + DEV_TREE_HEADER_SIZE ;
+	dt_entry_ptr = (char *)table + DEV_TREE_HEADER_SIZE;
+
+
+	switch (table->version) {
+	case 1:	/* fall through */
+	case 2:	/* fall through */
+	case 3: size = sizeof_dt_entry(table); break;
+	default: return NULL;
+	}
 
 	for(i = 0; i < table->num_entries; i++)
 	{
-		if((dt_entry_ptr->platform_id == board_platform_id()) &&
-		   (dt_entry_ptr->variant_id == board_hardware_id()) &&
-		   (dt_entry_ptr->soc_rev == 0)){
+		if((dt_platform_id(table, dt_entry_ptr) == board_platform_id()) &&
+		   (dt_variant_id(table, dt_entry_ptr) == board_hardware_id()) &&
+		   (dt_soc_rev(table, dt_entry_ptr) == 0)){
 				return dt_entry_ptr;
 		}
-		dt_entry_ptr++;
+		dt_entry_ptr += size;
 	}
 	return NULL;
 }
+
+#define DTB_PAD_SIZE	1024
 
 int update_device_tree(const void * fdt, char *cmdline,
 					   void *ramdisk, unsigned ramdisk_size)
@@ -2071,6 +2226,14 @@ int update_device_tree(const void * fdt, char *cmdline,
 		return ret;
 	}
 
+	/* Add padding to make space for new nodes and properties. */
+	ret = fdt_open_into(fdt, fdt, fdt_totalsize(fdt) + DTB_PAD_SIZE);
+	if (ret!= 0)
+	{
+		dprintf(CRITICAL, "Failed to move/resize dtb buffer: %d\n", ret);
+		return ret;
+	}
+
 	/* Get offset of the memory node */
 	offset = fdt_path_offset(fdt,"/memory");
 
@@ -2086,6 +2249,11 @@ int update_device_tree(const void * fdt, char *cmdline,
 
 	/* Get offset of the chosen node */
 	offset = fdt_path_offset(fdt, "/chosen");
+	if (offset < 0)
+	{
+		dprintf(CRITICAL, "Could not find chosen node.\n");
+		return ret;
+	}
 
 	/* Adding the cmdline to the chosen node */
 	final_cmdline = update_cmdline(cmdline);
@@ -2095,6 +2263,9 @@ int update_device_tree(const void * fdt, char *cmdline,
 		dprintf(CRITICAL, "ERROR: Cannot update chosen node [bootargs]\n");
 		return ret;
 	}
+
+	if (!ramdisk || ramdisk_size == 0)
+		goto no_initrd;
 
 	/* Adding the initrd-start to the chosen node */
 	ret = fdt_setprop_cell(fdt, offset, "linux,initrd-start", ramdisk);
@@ -2112,6 +2283,7 @@ int update_device_tree(const void * fdt, char *cmdline,
 		return ret;
 	}
 
+no_initrd:
 	fdt_pack(fdt);
 
 	return ret;
