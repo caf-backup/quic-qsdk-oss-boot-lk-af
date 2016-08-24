@@ -327,7 +327,7 @@ typedef enum {
 	SMEM_FIRST_VALID_TYPE = SMEM_SPINLOCK_ARRAY,
 	SMEM_LAST_VALID_TYPE = SMEM_PARTITION_TABLE_OFFSET,
 
-	SMEM_MAX_SIZE = SMEM_BOOT_INFO_FOR_APPS + 1,
+	SMEM_MAX_SIZE = SMEM_LAST_VALID_TYPE + 1,
 } smem_mem_type_t;
 
 /* Note: buf MUST be 4byte aligned, and max_len MUST be a multiple of 4. */
