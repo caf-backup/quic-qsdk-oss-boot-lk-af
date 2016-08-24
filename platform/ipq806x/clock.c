@@ -474,6 +474,17 @@ static struct branch_clk gsbi7_p_clk = {
 	},
 };
 
+static struct branch_clk ebi2_clk = {
+	.b = {
+		.ctl_reg = (void *)EBI2_CLK_CTL,
+		.en_mask = BIT(4),
+	},
+	.c = {
+		.dbg_name = "ebi2_clk",
+		.ops = &clk_ops_branch,
+	},
+};
+
 #ifdef DEBUG_CLOCK
 struct measure_sel {
 	uint32_t test_vector;
@@ -686,6 +697,7 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("ce5_src_clk",		ce5_src_clk.c),
 	CLK_LOOKUP("ce5_pclk",			ce5_p_clk.c),
 	CLK_LOOKUP("ce5_clk",			ce5_core_clk.c),
+	CLK_LOOKUP("ebi2_clk",			ebi2_clk.c),
 	CLK_LOOKUP("measure",			measure_clk.c),
 
 };
@@ -728,5 +740,12 @@ void msm_clocks_init()
 {
 	clk_ops_pll.enable = sr_pll_clk_enable;
 	clk_init(msm_clocks_ipq806x, msm_num_clocks_ipq806x);
+
+	/*
+	 * Though LK doesn't use NAND, the kernel probes the NAND.
+	 * If this is not enabled, kernel's NAND probe hangs resulting
+	 * in the boot getting stuck.
+	 */
+	clk_get_set_enable("ebi2_clk", 0 /* rate */, 1 /* enable */);
 }
 
