@@ -85,7 +85,7 @@ unsigned int
 mmc_boot_read_mbr(struct mmc_boot_host *mmc_host,
 		  struct mmc_boot_card *mmc_card)
 {
-	unsigned char buffer[BLOCK_SIZE];
+	unsigned char *buffer;
 	unsigned int dtype;
 	unsigned int dfirstsec;
 	unsigned int EBR_first_sec;
@@ -93,18 +93,22 @@ mmc_boot_read_mbr(struct mmc_boot_host *mmc_host,
 	int ret = MMC_BOOT_E_SUCCESS;
 	int idx, i;
 
+	buffer = memalign(BLOCK_SIZE, ROUNDUP(BLOCK_SIZE, CACHE_LINE));
+	if (!buffer)
+		return MMC_BOOT_E_MEM_ALLOC_FAIL;
+
 	/* Print out the MBR first */
 	ret = mmc_boot_read_from_card(mmc_host, mmc_card, 0,
 				      BLOCK_SIZE, (unsigned int *)buffer);
 	if (ret) {
 		dprintf(CRITICAL, "Could not read partition from mmc\n");
-		return ret;
+		goto err_out;
 	}
 
 	/* Check to see if signature exists */
 	ret = partition_verify_mbr_signature(BLOCK_SIZE, buffer);
 	if (ret) {
-		return ret;
+		goto err_out;
 	}
 
 	/*
@@ -118,7 +122,7 @@ mmc_boot_read_mbr(struct mmc_boot_host *mmc_host,
 		dtype = buffer[idx + i * TABLE_ENTRY_SIZE + OFFSET_TYPE];
 		if (dtype == MBR_PROTECTED_TYPE) {
 			gpt_partitions_exist = 1;
-			return ret;
+			goto err_out;
 		}
 		partition_entries[partition_count].dtype = dtype;
 		partition_entries[partition_count].attribute_flag =
@@ -136,12 +140,12 @@ mmc_boot_read_mbr(struct mmc_boot_host *mmc_host,
 			      partition_entries[partition_count].dtype);
 		partition_count++;
 		if (partition_count == NUM_PARTITIONS)
-			return ret;
+			goto err_out;
 	}
 
 	/* See if the last partition is EBR, if not, parsing is done */
 	if (dtype != MBR_EBR_TYPE) {
-		return ret;
+		goto err_out;
 	}
 
 	EBR_first_sec = dfirstsec;
@@ -151,7 +155,7 @@ mmc_boot_read_mbr(struct mmc_boot_host *mmc_host,
 				      (EBR_first_sec * 512),
 				      BLOCK_SIZE, (unsigned int *)buffer);
 	if (ret) {
-		return ret;
+		goto err_out;
 	}
 	/* Loop to parse the EBR */
 	for (i = 0;; i++) {
@@ -174,7 +178,7 @@ mmc_boot_read_mbr(struct mmc_boot_host *mmc_host,
 			      partition_entries[partition_count].dtype);
 		partition_count++;
 		if (partition_count == NUM_PARTITIONS)
-			return ret;
+			goto err_out;
 
 		dfirstsec =
 		    GET_LWORD_FROM_BYTE(&buffer
@@ -191,10 +195,12 @@ mmc_boot_read_mbr(struct mmc_boot_host *mmc_host,
 						dfirstsec) * 512), BLOCK_SIZE,
 					      (unsigned int *)buffer);
 		if (ret) {
-			return ret;
+			goto err_out;
 		}
 		EBR_current_sec = EBR_first_sec + dfirstsec;
 	}
+err_out:
+	free(buffer);
 	return ret;
 }
 
@@ -213,7 +219,7 @@ mmc_boot_read_gpt(struct mmc_boot_host *mmc_host,
 	unsigned long long card_size_sec;
 	unsigned int max_partition_count = 0;
 	unsigned int partition_entry_size;
-	unsigned char data[BLOCK_SIZE];
+	unsigned char *data;
 	unsigned int i = 0;	/* Counter for each 512 block */
 	unsigned int j = 0;	/* Counter for each 128 entry in the 512 block */
 	unsigned int n = 0;	/* Counter for UTF-16 -> 8 conversion */
@@ -222,6 +228,9 @@ mmc_boot_read_gpt(struct mmc_boot_host *mmc_host,
 	unsigned long long partition_0;
 	partition_count = 0;
 
+	data = memalign(BLOCK_SIZE, ROUNDUP(BLOCK_SIZE, CACHE_LINE));
+	if (!data)
+		return MMC_BOOT_E_MEM_ALLOC_FAIL;
 	/* Print out the GPT first */
 	ret = mmc_boot_read_from_card(mmc_host, mmc_card,
 				      PROTECTIVE_MBR_SIZE,
@@ -251,7 +260,7 @@ mmc_boot_read_gpt(struct mmc_boot_host *mmc_host,
 		if (ret) {
 			dprintf(CRITICAL,
 				"GPT: Could not read backup gpt from mmc\n");
-			return ret;
+			goto err_out;
 		}
 
 		ret = partition_parse_gpt_header(data, &first_usable_lba,
@@ -261,7 +270,7 @@ mmc_boot_read_gpt(struct mmc_boot_host *mmc_host,
 		if (ret) {
 			dprintf(CRITICAL,
 				"GPT: Primary and backup signatures invalid\n");
-			return ret;
+			goto err_out;
 		}
 	}
 	partition_0 = GET_LLWORD_FROM_BYTE(&data[PARTITION_ENTRIES_OFFSET]);
@@ -276,7 +285,7 @@ mmc_boot_read_gpt(struct mmc_boot_host *mmc_host,
 		if (ret) {
 			dprintf(CRITICAL,
 				"GPT: mmc read card failed reading partition entries.\n");
-			return ret;
+			goto err_out;
 		}
 
 		for (j = 0; j < 4; j++) {
@@ -327,6 +336,8 @@ mmc_boot_read_gpt(struct mmc_boot_host *mmc_host,
 			partition_count++;
 		}
 	}
+err_out:
+	free(data);
 	return ret;
 }
 
@@ -1048,7 +1059,9 @@ partition_parse_gpt_header(unsigned char *buffer,
 		blocks_to_read += 1;
 	}
 
-	new_buffer = (uint8_t *)memalign(CACHE_LINE, ROUNDUP((blocks_to_read * BLOCK_SIZE),CACHE_LINE));
+	new_buffer = (uint8_t *)memalign(BLOCK_SIZE,
+					ROUNDUP((blocks_to_read * BLOCK_SIZE),
+					CACHE_LINE));
 
 	if (!new_buffer)
 	{
