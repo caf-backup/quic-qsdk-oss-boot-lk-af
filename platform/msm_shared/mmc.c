@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <debug.h>
 #include <reg.h>
+#include <arch/ops.h>
 #include "mmc.h"
 #include <partition_parser.h>
 #include <platform/iomap.h>
@@ -108,31 +109,36 @@ static const unsigned int xfer_rate_value[] =
 unsigned char mmc_slot = 0;
 unsigned int mmc_boot_mci_base = 0;
 
-static unsigned char ext_csd_buf[512];
+static unsigned char ext_csd_buf[512] __attribute__ ((aligned(BLOCK_SIZE)));
 static unsigned char wp_status_buf[8];
 
 #if MMC_BOOT_BAM
 
 static uint32_t mmc_sdc_bam_base[] =
 	{ MSM_SDC1_BAM_BASE, MSM_SDC2_BAM_BASE, MSM_SDC3_BAM_BASE, MSM_SDC4_BAM_BASE };
-
 static uint32_t mmc_sdc_dml_base[] =
 	{ MSM_SDC1_DML_BASE, MSM_SDC2_DML_BASE, MSM_SDC3_DML_BASE, MSM_SDC4_DML_BASE };
 
 uint32_t dml_base;
+uint32_t dma_enabled = false;
 static struct bam_instance bam;
 
-#define MMC_BOOT_BAM_FIFO_SIZE           100
+#define MMC_BOOT_BAM_RD_FIFO_SIZE	128
+#define MMC_BOOT_BAM_WR_FIFO_SIZE	128
 
-#define MMC_BOOT_BAM_READ_PIPE_INDEX     0
-#define MMC_BOOT_BAM_WRITE_PIPE_INDEX    1
+#define MMC_BOOT_BAM_READ_PIPE_INDEX	1
+#define MMC_BOOT_BAM_WRITE_PIPE_INDEX	2
 
-#define MMC_BOOT_BAM_READ_PIPE           0
-#define MMC_BOOT_BAM_WRITE_PIPE          1
+#define MMC_BOOT_BAM_READ_PIPE		1
+#define MMC_BOOT_BAM_WRITE_PIPE		2
+
+#define MMC_DEFAULT_CNT_THRSHLD		8
 
 /* Align at BAM_DESC_SIZE boundary */
-static struct bam_desc desc_fifo[MMC_BOOT_BAM_FIFO_SIZE] __attribute__ ((aligned(BAM_DESC_SIZE)));
-
+static struct bam_desc rd_desc_fifo[MMC_BOOT_BAM_RD_FIFO_SIZE]
+		__attribute__ ((aligned(BLOCK_SIZE)));
+static struct bam_desc wr_desc_fifo[MMC_BOOT_BAM_WR_FIFO_SIZE]
+		__attribute__ ((aligned(BLOCK_SIZE)));
 #endif
 
 int mmc_clock_enable_disable(unsigned id, unsigned enable);
@@ -1145,7 +1151,9 @@ mmc_boot_send_ext_cmd(struct mmc_boot_card *card, unsigned char *buf)
 								MMC_BOOT_MCI_BLKSIZE_POS);
 
 #if MMC_BOOT_ADM || MMC_BOOT_BAM
-	mmc_reg |= MMC_BOOT_MCI_DATA_DM_ENABLE;
+	if (dma_enabled) {
+		mmc_reg |= MMC_BOOT_MCI_DATA_DM_ENABLE;
+	}
 #endif
 
 	writel(mmc_reg, MMC_BOOT_MCI_DATA_CTL);
@@ -1154,8 +1162,11 @@ mmc_boot_send_ext_cmd(struct mmc_boot_card *card, unsigned char *buf)
 	mmc_mclk_reg_wr_delay();
 
 #if MMC_BOOT_BAM
-	/*  Setup SDCC BAM descriptors for Read operation. */
-	mmc_ret = mmc_boot_bam_setup_desc(mmc_ptr, 512, MMC_BOOT_DATA_READ);
+	if (dma_enabled) {
+		/*  Setup SDCC BAM descriptors for Read operation. */
+		mmc_ret = mmc_boot_bam_setup_desc(mmc_ptr, 512,
+						  MMC_BOOT_DATA_READ);
+	}
 #endif
 
 	memset((struct mmc_boot_command *)&cmd, 0,
@@ -1472,7 +1483,9 @@ mmc_boot_write_to_card(struct mmc_boot_host *host,
 	writel(data_len, MMC_BOOT_MCI_DATA_LENGTH);
 
 #if MMC_BOOT_BAM
+	if (dma_enabled) {
 		mmc_boot_bam_setup_desc(in, data_len, MMC_BOOT_DATA_WRITE);
+	}
 #endif
 
 	/* Send command to the card/device in order to start the write data xfer.
@@ -1497,7 +1510,9 @@ mmc_boot_write_to_card(struct mmc_boot_host *host,
 	/* Set DM_ENABLE bit to 1 in order to enable DMA, otherwise set 0 */
 
 #if MMC_BOOT_ADM || MMC_BOOT_BAM
-	mmc_reg |= MMC_BOOT_MCI_DATA_DM_ENABLE;
+	if (dma_enabled) {
+		mmc_reg |= MMC_BOOT_MCI_DATA_DM_ENABLE;
+	}
 #endif
 
 	/* Write size of block to be used during the data transfer to
@@ -1556,8 +1571,10 @@ mmc_boot_write_to_card(struct mmc_boot_host *host,
 	while (1);
 
 #if MMC_BOOT_BAM
-	/* Wait for DML trasaction to end */
-	mmc_boot_dml_wait_consumer_idle();
+	if (dma_enabled) {
+		/* Wait for DML trasaction to end */
+		mmc_boot_dml_wait_consumer_idle();
+	}
 #endif
 
 	/* Reset DPSM */
@@ -1691,6 +1708,13 @@ mmc_boot_read_from_card(struct mmc_boot_host *host,
 			open_ended_read = 0;
 		}
 	}
+#if MMC_BOOT_BAM
+	if (dma_enabled) {
+		/* Setup SDCC FIFO descriptors for Read operation. */
+		mmc_ret = mmc_boot_bam_setup_desc(out, data_len,
+						  MMC_BOOT_DATA_READ);
+	}
+#endif
 
 	/* Set the FLOW_ENA bit of MCI_CLK register to 1 */
 	/* Note: It's already enabled */
@@ -1710,6 +1734,9 @@ mmc_boot_read_from_card(struct mmc_boot_host *host,
 	   register. For block xfer it must be multiple of the block
 	   size. */
 	writel(data_len, MMC_BOOT_MCI_DATA_LENGTH);
+
+	writel(((readl(MMC_BOOT_MCI_CLK)) | MMC_BOOT_MCI_CLK_ENA_FLOW),
+	       MMC_BOOT_MCI_CLK);
 
 	/* For MMCHC/SDHC data address is specified in unit of 512B */
 	addr = ((card->type != MMC_BOOT_TYPE_MMCHC)
@@ -1731,7 +1758,10 @@ mmc_boot_read_from_card(struct mmc_boot_host *host,
 	/* If DMA is to be used, Set DM_ENABLE bit to 1 */
 
 #if MMC_BOOT_ADM || MMC_BOOT_BAM
-	mmc_reg |= MMC_BOOT_MCI_DATA_DM_ENABLE;
+	if (dma_enabled) {
+		mmc_reg |= MMC_BOOT_MCI_RX_DATA_PEND;
+		mmc_reg |= MMC_BOOT_MCI_DATA_DM_ENABLE;
+	}
 #endif
 
 	/* Write size of block to be used during the data transfer to
@@ -1742,10 +1772,6 @@ mmc_boot_read_from_card(struct mmc_boot_host *host,
 	/* Wait for the MMC_BOOT_MCI_DATA_CTL write to go through. */
 	mmc_mclk_reg_wr_delay();
 
-#if MMC_BOOT_BAM
-	/* Setup SDCC FIFO descriptors for Read operation. */
-	mmc_ret = mmc_boot_bam_setup_desc(out, data_len, MMC_BOOT_DATA_READ);
-#endif
 	/* Send command to the card/device in order to start the read data
 	   transfer. Possible commands: CMD17/18/53/60/61. */
 	mmc_ret = mmc_boot_send_read_command(card, xfer_type, addr);
@@ -2158,8 +2184,8 @@ mmc_boot_init_and_identify_cards(struct mmc_boot_host *host,
 
 	/* Initialize MMC card structure */
 	card->status = MMC_BOOT_STATUS_INACTIVE;
-	card->rd_block_len = MMC_BOOT_RD_BLOCK_LEN;
-	card->wr_block_len = MMC_BOOT_WR_BLOCK_LEN;
+	card->rd_block_len = MMC_BOOT_BLOCK_LEN;
+	card->wr_block_len = MMC_BOOT_BLOCK_LEN;
 
 	/* Start initialization process (CMD0 & CMD1) */
 	mmc_return = mmc_boot_init_card(host, card);
@@ -2252,8 +2278,6 @@ __WEAK int target_mmc_init(unsigned char slot, unsigned int base)
 {
 	return 0;
 }
-
-
 /*
  * Entry point to MMC boot process
  */
@@ -2279,12 +2303,6 @@ unsigned int mmc_boot_main(unsigned char slot, unsigned int base)
 		return MMC_BOOT_E_FAILURE;
 	}
 
-#if MMC_BOOT_BAM
-
-	mmc_ret = mmc_bam_init(mmc_sdc_bam_base[slot - 1]);
-	dml_base = mmc_sdc_dml_base[slot - 1];
-#endif
-
 	/* Initialize and identify cards connected to host */
 	mmc_ret = mmc_boot_init_and_identify_cards(&mmc_host, &mmc_card);
 	if (mmc_ret != MMC_BOOT_E_SUCCESS) {
@@ -2292,6 +2310,18 @@ unsigned int mmc_boot_main(unsigned char slot, unsigned int base)
 			"MMC Boot: Failed detecting MMC/SDC @ slot%d\n", slot);
 		return MMC_BOOT_E_FAILURE;
 	}
+
+	/*
+	 * MMC Enumeration uses FIFO based transfer, MMC Data transfer
+	 * uses BAM DMA mode.So BAM initialization is done after the
+	 * MMC enumeration completed.
+	 */
+#if MMC_BOOT_BAM
+	dml_base = mmc_sdc_dml_base[slot - 1];
+	mmc_ret = mmc_bam_init(mmc_sdc_bam_base[slot - 1]);
+	dma_enabled = true;
+#endif
+
 
 	mmc_display_csd();
 	mmc_display_ext_csd();
@@ -2396,7 +2426,9 @@ mmc_boot_read_reg(struct mmc_boot_card *card,
 								MMC_BOOT_MCI_BLKSIZE_POS);
 
 #if MMC_BOOT_ADM || MMC_BOOT_BAM
-	mmc_reg |= MMC_BOOT_MCI_DATA_DM_ENABLE;
+	if (dma_enabled) {
+		mmc_reg |= MMC_BOOT_MCI_DATA_DM_ENABLE;
+	}
 #endif
 
 	writel(mmc_reg, MMC_BOOT_MCI_DATA_CTL);
@@ -2480,7 +2512,7 @@ mmc_boot_set_clr_power_on_wp_user(struct mmc_boot_card *card,
 		wp_group_size =
 		    (512 * 1024) * ext_csd_buf[MMC_BOOT_EXT_HC_WP_GRP_SIZE] *
 		    ext_csd_buf[MMC_BOOT_EXT_HC_ERASE_GRP_SIZE] /
-		    MMC_BOOT_WR_BLOCK_LEN;
+		    MMC_BOOT_BLOCK_LEN;
 	} else {
 		/* wp_group_size = (WP_GRP_SIZE + 1) * (ERASE_GRP_SIZE + 1)
 		 * (ERASE_GRP_MULT + 1).
@@ -2643,10 +2675,10 @@ mmc_boot_data_transfer(unsigned int *data_ptr,
 		dprintf(CRITICAL, "MMC ADM transfer error: %d\n", ret);
 		mmc_ret = MMC_BOOT_E_FAILURE;
 	}
-
-#elif MMC_BOOT_BAM
-	mmc_ret = mmc_bam_transfer_data(data_ptr, data_len, direction);
 #else
+
+	if (dma_enabled)
+		return mmc_bam_transfer_data(data_ptr, data_len, direction);
 
 	if (direction == MMC_BOOT_DATA_READ) {
 		mmc_ret = mmc_boot_fifo_read(data_ptr, data_len);
@@ -3015,13 +3047,7 @@ void mmc_boot_mci_clk_enable()
 	reg |= MMC_BOOT_MCI_CLK_ENABLE;
 	reg |= MMC_BOOT_MCI_CLK_ENA_FLOW;
 	reg |= MMC_BOOT_MCI_CLK_IN_FEEDBACK;
-	writel(reg, MMC_BOOT_MCI_CLK);
-
-	/* Wait for the MMC_BOOT_MCI_CLK write to go through. */
-	mmc_mclk_reg_wr_delay();
-
-	/* Enable power save */
-	reg |= MMC_BOOT_MCI_CLK_PWRSAVE;
+	reg |= MMC_BOOT_MCI_CLK_SDC4_MCLK_SEL_FREE_RUNNING;
 	writel(reg, MMC_BOOT_MCI_CLK);
 
 	/* Wait for the MMC_BOOT_MCI_CLK write to go through. */
@@ -3048,21 +3074,18 @@ void mmc_boot_dml_init()
 
 	/* Program DML config:
 	 * 1. Disable producer and consumer CRCI.
-	 * 2. Set Bypass mode for the DML for Direct access.
 	 */
-	val = 0;
-	val |= 1 >> SDCC_BYPASS_SHIFT;
-	writel(val, SDCC_DML_CONFIG(dml_base));
+	writel(0, SDCC_DML_CONFIG(dml_base));
 
 	/* Program consumer logic size:
 	 * This is for handshaking between the BAM and the DML blocks.
 	 */
-	writel(4096, SDCC_DML_CONSUMER_PIPE_LOGICAL_SIZE(dml_base));
+	writel(BLOCK_SIZE, SDCC_DML_CONSUMER_PIPE_LOGICAL_SIZE(dml_base));
 
 	/* Program producer logic size
 	 * This is for handshaking between the BAM and the DML blocks.
 	 */
-	writel(4096, SDCC_DML_PRODUCER_PIPE_LOGICAL_SIZE(dml_base));
+	writel(BLOCK_SIZE, SDCC_DML_PRODUCER_PIPE_LOGICAL_SIZE(dml_base));
 
 
 	/* Write the pipe id numbers. */
@@ -3173,29 +3196,30 @@ static int mmc_bam_init(uint32_t bam_base)
 	/* System consumer */
 	bam.pipe[MMC_BOOT_BAM_READ_PIPE_INDEX].trans_type = BAM2SYS;
 	/* Set the descriptor FIFO start ptr */
-	bam.pipe[MMC_BOOT_BAM_READ_PIPE_INDEX].fifo.head = desc_fifo;
+	bam.pipe[MMC_BOOT_BAM_READ_PIPE_INDEX].fifo.head = rd_desc_fifo;
 	/* Set the descriptor FIFO lengths */
-	bam.pipe[MMC_BOOT_BAM_READ_PIPE_INDEX].fifo.size = MMC_BOOT_BAM_FIFO_SIZE;
+	bam.pipe[MMC_BOOT_BAM_READ_PIPE_INDEX].fifo.size = MMC_BOOT_BAM_RD_FIFO_SIZE;
 
 	/* Write pipe parameter initializations.*/
 	bam.pipe[MMC_BOOT_BAM_WRITE_PIPE_INDEX].pipe_num = MMC_BOOT_BAM_WRITE_PIPE;
 	/* System producer */
 	bam.pipe[MMC_BOOT_BAM_WRITE_PIPE_INDEX].trans_type = SYS2BAM;
 	/* Write fifo uses the same fifo as read */
-	bam.pipe[MMC_BOOT_BAM_WRITE_PIPE_INDEX].fifo.head = desc_fifo;
+	bam.pipe[MMC_BOOT_BAM_WRITE_PIPE_INDEX].fifo.head = wr_desc_fifo;
 	/* Set the descriptor FIFO lengths */
-	bam.pipe[MMC_BOOT_BAM_WRITE_PIPE_INDEX].fifo.size = MMC_BOOT_BAM_FIFO_SIZE;
+	bam.pipe[MMC_BOOT_BAM_WRITE_PIPE_INDEX].fifo.size = MMC_BOOT_BAM_WR_FIFO_SIZE;
 
 	/* Programs the minimum threshold for BAM transfer*/
-	bam.threshold = BLOCK_SIZE;
-
+	bam.threshold = MMC_DEFAULT_CNT_THRSHLD;
+        bam.max_desc_len = 0xFFFF;
+        bam.ee = 0;
 	/* Initialize MMC BAM */
 	bam_init(&bam);
 
 	/* Initialize BAM MMC read pipe */
 	bam_sys_pipe_init(&bam, MMC_BOOT_BAM_READ_PIPE_INDEX);
 
-	mmc_ret = bam_pipe_fifo_init(&bam, bam.pipe[MMC_BOOT_BAM_READ_PIPE_INDEX].pipe_num);
+	mmc_ret = bam_pipe_fifo_init(&bam, MMC_BOOT_BAM_READ_PIPE_INDEX);
 
 	if (mmc_ret)
 	{
@@ -3206,7 +3230,7 @@ static int mmc_bam_init(uint32_t bam_base)
 	/* Initialize BAM MMC write pipe */
 	bam_sys_pipe_init(&bam, MMC_BOOT_BAM_WRITE_PIPE_INDEX);
 
-	mmc_ret = bam_pipe_fifo_init(&bam, bam.pipe[MMC_BOOT_BAM_WRITE_PIPE_INDEX].pipe_num);
+	mmc_ret = bam_pipe_fifo_init(&bam, MMC_BOOT_BAM_WRITE_PIPE_INDEX);
 
 	if (mmc_ret)
 	{
@@ -3232,17 +3256,6 @@ static int mmc_bam_transfer_data(unsigned int *data_ptr,
 
 	if(dir == MMC_BOOT_DATA_READ)
 	{
-		/* Check BAM IRQ status reg to verify the desc has been processed */
-		mmc_ret = bam_wait_for_interrupt(&bam,
-					MMC_BOOT_BAM_READ_PIPE_INDEX, P_PRCSD_DESC_EN_MASK);
-
-		if (mmc_ret != BAM_RESULT_SUCCESS)
-		{
-			dprintf(CRITICAL, "BAM transfer error \n");
-			mmc_ret = MMC_BOOT_E_FAILURE;
-			goto mmc_bam_transfer_err;
-		}
-
 		mmc_boot_dml_wait_producer_idle();
 
 		/* Update BAM pipe fifo offsets */
@@ -3258,17 +3271,6 @@ static int mmc_bam_transfer_data(unsigned int *data_ptr,
 	}
 	else
 	{
-		/* Check BAM IRQ status reg to verify the desc has been processed */
-		mmc_ret = bam_wait_for_interrupt(&bam,
-					MMC_BOOT_BAM_WRITE_PIPE_INDEX, P_TRNSFR_END_EN_MASK);
-
-		if (mmc_ret != BAM_RESULT_SUCCESS)
-		{
-			dprintf(CRITICAL, "BAM transfer error \n");
-			mmc_ret = MMC_BOOT_E_FAILURE;
-			goto mmc_bam_transfer_err;
-		}
-
 		/* Update BAM pipe fifo offsets */
 		offset = bam_read_offset_update(&bam, MMC_BOOT_BAM_WRITE_PIPE_INDEX);
 
@@ -3291,13 +3293,13 @@ mmc_boot_bam_setup_desc(unsigned int *data_ptr,
 	{
 		mmc_boot_dml_producer_trans_init(1, data_len);
 		mmc_ret = bam_add_desc(&bam, MMC_BOOT_BAM_READ_PIPE_INDEX,
-					(unsigned char *)data_ptr, data_len);
+					(unsigned char *)data_ptr, data_len, 0);
 	}
 	else
 	{
 		mmc_boot_dml_consumer_trans_init();
 		mmc_ret = bam_add_desc(&bam, MMC_BOOT_BAM_WRITE_PIPE_INDEX,
-					(unsigned char *)data_ptr, data_len);
+					(unsigned char *)data_ptr, data_len, 0);
 	}
 
 	/* Update return value enums */

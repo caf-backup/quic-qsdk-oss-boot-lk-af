@@ -65,7 +65,7 @@ extern unsigned int mmc_boot_mci_base;
 #define MMC_BOOT_MCI_CLK_WIDEBUS_MODE     (3 << 10)
 #define MMC_BOOT_MCI_CLK_WIDEBUS_1_BIT    0
 #define MMC_BOOT_MCI_CLK_WIDEBUS_4_BIT    (2 << 10)
-#define MMC_BOOT_MCI_CLK_WIDEBUS_8_BIT    (1 << 10)
+#define MMC_BOOT_MCI_CLK_WIDEBUS_8_BIT    (3 << 10)
 /* Enable flow control- 0: disable 1: enable */
 #define MMC_BOOT_MCI_CLK_ENA_FLOW         (1 << 12)
 /* Set/clear to select rising/falling edge for data/cmd output */
@@ -75,6 +75,7 @@ extern unsigned int mmc_boot_mci_base;
 #define MMC_BOOT_MCI_CLK_IN_RISING        (1 << 14)
 #define MMC_BOOT_MCI_CLK_IN_FEEDBACK      (2 << 14)
 #define MMC_BOOT_MCI_CLK_IN_LOOPBACK      (3 << 14)
+#define MMC_BOOT_MCI_CLK_SDC4_MCLK_SEL_FREE_RUNNING	(2 << 23)
 
 /* Bus Width */
 #define MMC_BOOT_BUS_WIDTH_1_BIT          0
@@ -124,6 +125,7 @@ extern unsigned int mmc_boot_mci_base;
 #define MMC_BOOT_MCI_DATA_MODE            (1 << 2)
 /* Enable DM interface - 0: DM disabled 1: DM enabled */
 #define MMC_BOOT_MCI_DATA_DM_ENABLE       (1 << 3)
+#define MMC_BOOT_MCI_RX_DATA_PEND	(1 << 20)
 /* Data block length in bytes (1-4096) */
 #define MMC_BOOT_MCI_BLKSIZE_POS          4
 #define MMC_BOOT_MCI_DATA_COUNT           MMC_BOOT_MCI_REG(0x030)
@@ -252,6 +254,8 @@ extern unsigned int mmc_boot_mci_base;
 #define MMC_BOOT_MCI_VERSION              MMC_BOOT_MCI_REG(0x050)
 
 #define MMC_BOOT_MCI_CCS_TIMER            MMC_BOOT_MCI_REG(0x0058)
+
+#define MMC_BOOT_MCI_DLL_CONFIG		MMC_BOOT_MCI_REG(0x060)
 
 #define MMC_BOOT_MCI_STATUS2              MMC_BOOT_MCI_REG(0x06C)
 #define MMC_BOOT_MCI_MCLK_REG_WR_ACTIVE   (1 << 0)
@@ -562,6 +566,7 @@ struct mmc_boot_host {
 #define MMC_BOOT_MAX_COMMAND_RETRY    1000
 #define MMC_BOOT_RD_BLOCK_LEN         512
 #define MMC_BOOT_WR_BLOCK_LEN         512
+#define MMC_BOOT_BLOCK_LEN	512
 
 /* We have 16 32-bits FIFO registers */
 #define MMC_BOOT_MCI_FIFO_DEPTH       16
