@@ -681,7 +681,7 @@ int check_aboot_addr_range_overlap(uint32_t start, uint32_t size)
 
 #define ROUND_TO_PAGE(x,y) (((x) + (y)) & (~(y)))
 
-static unsigned char buf[4096]; //Equal to max-supported pagesize
+static unsigned char buf[4096] __attribute__ ((aligned(BLOCK_SIZE))); //Equal to max-supported pagesize
 #if DEVICE_TREE
 static unsigned char dt_buf[4096];
 #endif
