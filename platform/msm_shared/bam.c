@@ -25,7 +25,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+#include <sys/types.h>
 #include <bam.h>
 #include <reg.h>
 #include <debug.h>
@@ -38,21 +38,8 @@
 
 #define HLOS_EE_INDEX          0
 
-/* Reset BAM registers and pipes */
-static void bam_reset(struct bam_instance *bam)
-{
-	/* Initiate SW reset */
-	writel(BAM_SW_RST_BIT_MASK, BAM_CTRL_REG(bam->base));
-
-	/* No delay required */
-
-	/* Disable SW reset */
-	writel(~BAM_SW_RST_BIT_MASK, BAM_CTRL_REG(bam->base));
-}
-
 /* Resets pipe registers and state machines */
-static void bam_pipe_reset(struct bam_instance *bam,
-                              uint8_t pipe_num)
+void bam_pipe_reset(struct bam_instance *bam, uint8_t pipe_num)
 {
 	/* Start sw reset of the pipe to be allocated */
 	writel(1, BAM_P_RSTn(bam->pipe[pipe_num].pipe_num, bam->base));
@@ -84,7 +71,7 @@ int bam_wait_for_interrupt(struct bam_instance *bam,
 		/* Wait for a interrupt on the right pipe */
 		do{
 			/* Determine the pipe causing the interrupt */
-			val = readl(BAM_IRQ_SRCS(bam->base));
+			val = readl(BAM_IRQ_SRCS(bam->base, bam->ee));
 			/* Flush out the right most global interrupt bit */
 		} while (!((val & 0x7FFF) & (1 << bam->pipe[pipe_num].pipe_num)));
 
@@ -138,13 +125,11 @@ void bam_enable_interrupts(struct bam_instance *bam, uint8_t pipe_num)
 	 */
 	writel(int_mask,
 			BAM_P_IRQ_ENn(bam->pipe[pipe_num].pipe_num, bam->base));
-
 	/* Enable pipe interrups */
 	/* Do read-modify-write */
-	val = readl(BAM_IRQ_SRCS_MSK(bam->base));
+	val = readl(BAM_IRQ_SRCS_MSK(bam->base, bam->ee));
 	writel((1 << bam->pipe[pipe_num].pipe_num) | val,
-			BAM_IRQ_SRCS_MSK(bam->base));
-
+			BAM_IRQ_SRCS_MSK(bam->base, bam->ee));
 	/* Unmask the QGIC interrupts only in the case of
 	 * interrupt based transfer.
 	 * Use polling othwerwise.
@@ -164,29 +149,25 @@ void bam_init(struct bam_instance *bam)
 {
 	uint32_t val = 0;
 
-	bam_reset(bam);
-
 	/* Check for only one pipe's direction.
 	 * The other is assumed to be the opposite system
 	 * transaction.
 	 */
-	if (bam->pipe[0].trans_type == SYS2BAM ||
-		bam->pipe[0].trans_type == BAM2SYS)
+	if (bam->pipe[1].trans_type == SYS2BAM ||
+		bam->pipe[1].trans_type == BAM2SYS)
 	{
 		/* Program the threshold count */
 		writel(bam->threshold, BAM_DESC_CNT_TRSHLD_REG(bam->base));
 	}
 
 	/* Program config register for H/W bug fixes */
-	val = 0xffffffff & ~(1 << 11);
-	writel(val, BAM_CNFG_BITS(bam->base));
+	writel(BAM_CNFG_VAL_HW_FIXES, BAM_CNFG_BITS(bam->base));
 
-	/* Write the EE index to control the mapping of interrupts to EE */
-	val = HLOS_EE_INDEX & BAM_EE_MASK;
-	writel(val, BAM_TRUST_REG(bam->base));
-
+	val = readl(BAM_CTRL_REG(bam->base));
+	val = val | BAM_ENABLE_BIT_MASK;
 	/* Enable the BAM */
-	writel(BAM_ENABLE_BIT_MASK, BAM_CTRL_REG(bam->base));
+	writel(val, BAM_CTRL_REG(bam->base));
+	val = readl(BAM_CTRL_REG(bam->base));
 }
 
 /* Funtion to setup a simple fifo structure.
@@ -197,20 +178,25 @@ void bam_init(struct bam_instance *bam)
 int bam_pipe_fifo_init(struct bam_instance *bam,
                        uint8_t pipe_num)
 {
-	if (bam->pipe[pipe_num].fifo.size > 0x7FFF)
-	{
-		dprintf(CRITICAL,
-				"Size exceeds max size for a descriptor(0x7FFF)\n");
+	if (bam->pipe[pipe_num].fifo.size > 0x7FFF) {
+		dprintf(CRITICAL, "bam: Size exceeds max size for a descriptor(0x7FFF)\n");
 		return BAM_RESULT_FAILURE;
 	}
 
 	/* Check if fifo start is 8-byte alligned */
-	ASSERT(!((uint32_t)PA((addr_t)bam->pipe[pipe_num].fifo.head & 0x7)));
+	if ((addr_t)bam->pipe[pipe_num].fifo.head & 0x7) {
+		dprintf(CRITICAL, "bam: fifo start is not 8-byte alligned\n");
+		return BAM_RESULT_FAILURE;
+	}
 
 	/* Check if fifo size is a power of 2.
 	 * The circular fifo logic in lk expects this.
 	 */
-	ASSERT(ispow2(bam->pipe[pipe_num].fifo.size));
+
+	if (!(ispow2(bam->pipe[pipe_num].fifo.size))) {
+		dprintf(CRITICAL, "bam: fifo size is  not power of 2\n");
+		return BAM_RESULT_FAILURE;
+	}
 
 	bam->pipe[pipe_num].fifo.current = bam->pipe[pipe_num].fifo.head;
 
@@ -222,11 +208,14 @@ int bam_pipe_fifo_init(struct bam_instance *bam,
 	/* Needs a physical address conversion as we are setting up
 	 * the base of the FIFO for the BAM state machine.
 	 */
-	writel((uint32_t)PA((addr_t)bam->pipe[pipe_num].fifo.head),
+	writel((uint32_t)((addr_t)bam->pipe[pipe_num].fifo.head),
 		BAM_P_DESC_FIFO_ADDRn(bam->pipe[pipe_num].pipe_num, bam->base));
 
 	/* Initialize FIFO offset for the first read */
 	bam->pipe[pipe_num].fifo.offset = BAM_DESC_SIZE;
+
+	writel(P_ENABLE | readl(BAM_P_CTRLn(bam->pipe[pipe_num].pipe_num, bam->base)),
+		   BAM_P_CTRLn(bam->pipe[pipe_num].pipe_num, bam->base));
 
 	/* Everything is set.
 	 * Flag pipe init done.
@@ -243,18 +232,15 @@ void bam_sys_pipe_init(struct bam_instance *bam,
 	bam_pipe_reset(bam, pipe_num);
 
 	/* Enable minimal interrupts */
-	bam_enable_interrupts(bam, pipe_num);
-
+	if (bam->pipe[pipe_num].int_mode) {
+		bam_enable_interrupts(bam, pipe_num);
+	}
 	/* Pipe event threshold register is not relevant in sys modes */
 
 	/* Enable pipe in system mode and set the direction */
-	writel(P_SYS_MODE_MASK | P_ENABLE |
-			(bam->pipe[pipe_num].trans_type << P_DIRECTION_SHIFT),
-			BAM_P_CTRLn(bam->pipe[pipe_num].pipe_num, bam->base));
-
-	/* Write the EE index to control the mapping of pipe interrupts to EE */
-	val = HLOS_EE_INDEX & BAM_EE_MASK;
-	writel(val, BAM_P_TRUST_REGn(bam->pipe[pipe_num].pipe_num, bam->base));
+	writel(P_SYS_MODE_MASK | bam->pipe[pipe_num].lock_grp <<  P_LOCK_GRP_SHIFT |
+		   (bam->pipe[pipe_num].trans_type << P_DIRECTION_SHIFT),
+		   BAM_P_CTRLn(bam->pipe[pipe_num].pipe_num, bam->base));
 
 	/* Mark the pipe FIFO as uninitialized. */
 	bam->pipe[pipe_num].initialized = 0;
@@ -278,9 +264,13 @@ void bam_sys_gen_event(struct bam_instance *bam,
 		return;
 	}
 
+	/* bits 0:15 of BAM_P_EVNT_REGn denotes the offset. We read the offset,
+	 * and update the offset to notify BAM HW that new descriptors have been written
+	 */
+	val = readl(BAM_P_EVNT_REGn(bam->pipe[pipe_num].pipe_num, bam->base));
+
 	/* Update the fifo peer offset */
-	val = (num_desc - 1) * BAM_DESC_SIZE;
-	val += bam->pipe[pipe_num].fifo.offset;
+	val += (num_desc) * BAM_DESC_SIZE;
 	val &= (bam->pipe[pipe_num].fifo.size * BAM_DESC_SIZE - 1);
 
 	writel(val, BAM_P_EVNT_REGn(bam->pipe[pipe_num].pipe_num, bam->base));
@@ -289,24 +279,19 @@ void bam_sys_gen_event(struct bam_instance *bam,
 /* Function to read the updates for FIFO offsets.
  * bam : BAM that uses the FIFO.
  * pipe : BAM pipe that uses the FIFO.
- * return : FIFO offset where the next descriptor should be written.
- * Note : S/W maintains the circular properties of the FIFO and updates
- *        the offsets accordingly.
+ * return : void.
+ * Note : This register denotes the pointer Offset of the first un-Acknowledged Descriptor.
+ *        This register is only used by the Software. After receiving an interrupt, software reads this register
+ *        in order to know what descriptors has been processed. Although being Writable, Software
+ *        should never write to this register.
  */
-void bam_read_offset_update(struct bam_instance *bam, unsigned int pipe_num)
+uint32_t bam_read_offset_update(struct bam_instance *bam, unsigned int pipe_num)
 {
 	uint32_t offset;
 
 	offset = readl(BAM_P_SW_OFSTSn(bam->pipe[pipe_num].pipe_num, bam->base));
 	offset &= 0xFFFF;
-
-	dprintf(INFO, "Offset value is %d \n", offset);
-
-	/* Save the next offset to be written to. */
-		bam->pipe[pipe_num].fifo.current = (struct bam_desc*)
-											((uint32_t)bam->pipe[pipe_num].fifo.head + offset);
-
-	bam->pipe[pipe_num].fifo.offset = offset + BAM_DESC_SIZE ;
+	return offset;
 }
 
 /* Function to get the next desc address.
@@ -346,7 +331,7 @@ int bam_add_desc(struct bam_instance *bam,
 	unsigned int n = 0;
 	unsigned int desc_flags;
 
-	dprintf(INFO, "Data length for BAM transfer is %u\n", data_len);
+	dprintf(SPEW, "Data length for BAM transfer is %u\n", data_len);
 
 	if (data_ptr == NULL || len == 0)
 	{
@@ -356,28 +341,22 @@ int bam_add_desc(struct bam_instance *bam,
 	}
 
 	/* Check if we have enough space in FIFO */
-	if (len > (unsigned)bam->pipe[pipe_num].fifo.size * BAM_MAX_DESC_DATA_LEN)
-	{
-		dprintf(CRITICAL, "Data transfer exceeds desc fifo length.\n");
+	if (len > (unsigned)bam->pipe[pipe_num].fifo.size * bam->max_desc_len) {
+		dprintf(CRITICAL, "Data transfer exceeds desc fifo length.len=0x%x\n", len);
 		bam_ret = BAM_RESULT_FAILURE;
 		goto bam_add_desc_error;
 	}
 
-	while (len)
-	{
-
+	while (len) {
 		/* There are only 16 bits to write data length.
 		 * If more bits are needed, create more
 		 * descriptors.
 		 */
-		if (len > BAM_MAX_DESC_DATA_LEN)
-		{
-			desc_len = BAM_MAX_DESC_DATA_LEN;
-			len -= BAM_MAX_DESC_DATA_LEN;
+		if (len > bam->max_desc_len) {
+			desc_len = bam->max_desc_len;
+			len -= bam->max_desc_len;
 			desc_flags = 0;
-		}
-		else
-		{
+		} else {
 			desc_len = len;
 			len = 0;
 			/* Set correct flags on the last desc. */
@@ -387,7 +366,7 @@ int bam_add_desc(struct bam_instance *bam,
 		/* Write descriptor */
 		bam_add_one_desc(bam, pipe_num, data_ptr, desc_len, desc_flags);
 
-		data_ptr += BAM_MAX_DESC_DATA_LEN;
+		data_ptr += bam->max_desc_len;
 		n++;
 	}
 
@@ -412,7 +391,7 @@ int bam_add_one_desc(struct bam_instance *bam,
                      unsigned int pipe_num,
                      unsigned char* data_ptr,
                      uint32_t len,
-                     uint8_t flags)
+                     uint16_t flags)
 {
 
 	struct bam_desc *desc = bam->pipe[pipe_num].fifo.current;
@@ -450,10 +429,9 @@ int bam_add_one_desc(struct bam_instance *bam,
 	}
 
 	/* Check for the length of the desc. */
-	if (len > BAM_MAX_DESC_DATA_LEN)
-	{
+	if (len > bam->max_desc_len) {
 		dprintf(CRITICAL, "len of the desc exceeds max length"
-				" %d > %d\n", len, BAM_MAX_DESC_DATA_LEN);
+				" %d > %d\n", len, bam->max_desc_len);
 		bam_ret = BAM_RESULT_FAILURE;
 		goto bam_add_one_desc_error;
 	}
@@ -461,7 +439,11 @@ int bam_add_one_desc(struct bam_instance *bam,
 	desc->flags = flags;
 	desc->addr = (uint32_t)data_ptr;
 	desc->size = (uint16_t)len;
-	desc->reserved = 0;
+
+#if !defined(CONFIG_SYS_DCACHE_OFF)
+	arch_clean_invalidate_cache_range((addr_t)desc, BAM_DESC_SIZE);
+	arch_clean_invalidate_cache_range((addr_t)data_ptr, len);
+#endif
 
 	/* Update the FIFO to point to the head */
 	bam->pipe[pipe_num].fifo.current = fifo_getnext(&bam->pipe[pipe_num].fifo, desc);
@@ -478,10 +460,11 @@ struct cmd_element* bam_add_cmd_element(struct cmd_element *ptr,
 	/* Write cmd type.
 	 * Also, write the register address.
 	 */
-	 ptr->addr_n_cmd = (reg_addr & ~(0xFF000000)) | (cmd_type << 24);
+	ptr->addr_n_cmd = (reg_addr & ~(BAM_CE_REG_ADDR_MASK)) |
+				(cmd_type << (BAM_CE_CMD_TYPE_SHIFT));
 
 	/* Do not mask any of the addr bits by default */
-	ptr->reg_mask = 0xFFFFFFFF;
+	ptr->reg_mask = BAM_CE_REG_MASK;
 
 	/* Write the value to be written */
 	ptr->reg_data = value;
