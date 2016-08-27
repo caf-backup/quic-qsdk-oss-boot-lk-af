@@ -75,6 +75,7 @@ ifeq ($(PLATFORM),ipq806x)
 			$(LOCAL_DIR)/clock_pll.o \
 			$(LOCAL_DIR)/board.o \
 			$(LOCAL_DIR)/display.o \
+			$(LOCAL_DIR)/bam.o \
 			$(LOCAL_DIR)/timer.o
 endif
 

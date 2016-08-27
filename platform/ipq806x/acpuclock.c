@@ -166,7 +166,7 @@ void clock_config_mmc(uint32_t interface, uint32_t freq)
 		break;
 	case MMC_CLK_48MHZ:
 	case MMC_CLK_50MHZ: /* Max supported is 48MHZ */
-		rate = 52000000;
+		rate = 48000000;
 		break;
 	default:
 		ASSERT(0);
