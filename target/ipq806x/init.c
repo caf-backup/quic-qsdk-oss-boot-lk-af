@@ -46,6 +46,9 @@
 #include <board.h>
 #include <target/board.h>
 
+#define APPS_DLOAD_MAGIC1	0xE47B337D
+#define APPS_DLOAD_MAGIC2	0x0501CAB0
+
 extern void dmb(void);
 
 /* Setting this variable to different values defines the
@@ -144,6 +147,19 @@ void reboot_device(unsigned reboot_reason)
 unsigned check_reboot_mode(void)
 {
 	unsigned restart_reason = 0;
+
+	/*
+	 * The kernel did not shutdown properly in the previous boot.
+	 * The SBLs would not have loaded RPM firmware, proceeding with
+	 * the boot is not possible. Reboot the system cleanly.
+	 */
+	if ((readl(MSM_APPS_DLOAD_MAGIC1_ADDR) == APPS_DLOAD_MAGIC1) &&
+	    (readl(MSM_APPS_DLOAD_MAGIC2_ADDR) == APPS_DLOAD_MAGIC2)) {
+		dprintf(CRITICAL, "Apps Dload Magic set. Rebooting...\n");
+		writel(0, MSM_APPS_DLOAD_MAGIC1_ADDR);
+		writel(0, MSM_APPS_DLOAD_MAGIC2_ADDR);
+		reboot_device(0);
+	}
 
 	/* Read reboot reason and scrub it */
 	restart_reason = readl(RESTART_REASON_ADDR);
