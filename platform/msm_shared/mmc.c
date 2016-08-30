@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2013, 2016 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -1523,6 +1523,13 @@ mmc_boot_write_to_card(struct mmc_boot_host *host,
 	/* Wait for the MMC_BOOT_MCI_DATA_CTL write to go through. */
 	mmc_mclk_reg_wr_delay();
 
+#if MMC_BOOT_BAM
+	if (dma_enabled) {
+		/* Wait for DML trasaction to end */
+		mmc_boot_dml_wait_consumer_idle();
+	}
+#endif
+
 	/* write data to FIFO */
 	mmc_ret =
 	    mmc_boot_data_transfer(in, data_len, MMC_BOOT_DATA_WRITE);
@@ -1569,13 +1576,6 @@ mmc_boot_write_to_card(struct mmc_boot_host *host,
 		}
 	}
 	while (1);
-
-#if MMC_BOOT_BAM
-	if (dma_enabled) {
-		/* Wait for DML trasaction to end */
-		mmc_boot_dml_wait_consumer_idle();
-	}
-#endif
 
 	/* Reset DPSM */
 	writel(0, MMC_BOOT_MCI_DATA_CTL);
@@ -3299,7 +3299,8 @@ mmc_boot_bam_setup_desc(unsigned int *data_ptr,
 	{
 		mmc_boot_dml_consumer_trans_init();
 		mmc_ret = bam_add_desc(&bam, MMC_BOOT_BAM_WRITE_PIPE_INDEX,
-					(unsigned char *)data_ptr, data_len, 0);
+					(unsigned char *)data_ptr, data_len,
+					BAM_DESC_EOT_FLAG | BAM_DESC_EOB_FLAG);
 	}
 
 	/* Update return value enums */
