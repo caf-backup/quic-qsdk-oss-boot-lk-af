@@ -2351,6 +2351,8 @@ int update_device_tree(const void * fdt, char *cmdline,
 		return ret;
 	}
 
+	update_mac_addrs(fdt);
+
 	if (!ramdisk || ramdisk_size == 0)
 		goto no_initrd;
 
