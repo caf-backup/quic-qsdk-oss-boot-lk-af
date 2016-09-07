@@ -3211,7 +3211,14 @@ static int mmc_bam_init(uint32_t bam_base)
 
 	/* Programs the minimum threshold for BAM transfer*/
 	bam.threshold = MMC_DEFAULT_CNT_THRSHLD;
-        bam.max_desc_len = 0xFFFF;
+
+	/* Align descriptor size to 512 bytes, BAM needs each buffer
+	 * address to be aligned with 512 bytes. The desc_len field has 16 bits, 
+	 * 0xFE00 alignes the buffers to 512 bytes, same time uses the maximum 
+	 * possible buffer size in each descriptor.
+	 */
+        bam.max_desc_len = 0xFE00;
+
         bam.ee = 0;
 	/* Initialize MMC BAM */
 	bam_init(&bam);
