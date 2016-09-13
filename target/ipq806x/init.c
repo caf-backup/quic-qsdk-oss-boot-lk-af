@@ -45,6 +45,7 @@
 #include <crypto_hash.h>
 #include <board.h>
 #include <target/board.h>
+#include <scm.h>
 
 #define APPS_DLOAD_MAGIC1	0xE47B337D
 #define APPS_DLOAD_MAGIC2	0x0501CAB0
@@ -227,8 +228,13 @@ int target_cont_splash_screen()
 /* Do target specific usb initialization */
 void target_usb_init(void)
 {
+	int ret;
 	/* Select USB 2.0 */
-	writel(USB_CONT_TYPE_USB_20, TCSR_USB_CONTROLLER_TYPE_SEL);
+	ret = scm_call_atomic2(SCM_SVC_IO_ACCESS,SCM_IO_WRITE,
+			TCSR_USB_CONTROLLER_TYPE_SEL, USB_CONT_TYPE_USB_20);
+	if (ret) {
+		dprintf(CRITICAL, "Failed to select USB controller type as USB2.0, scm call returned error (0x%x)\n", ret);
+	}
 }
 
 void target_mmc_init(unsigned char slot, unsigned int base)
