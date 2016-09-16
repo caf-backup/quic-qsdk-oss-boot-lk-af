@@ -123,8 +123,8 @@ uint32_t dml_base;
 uint32_t dma_enabled = false;
 static struct bam_instance bam;
 
-#define MMC_BOOT_BAM_RD_FIFO_SIZE	128
-#define MMC_BOOT_BAM_WR_FIFO_SIZE	128
+#define MMC_BOOT_BAM_RD_FIFO_SIZE	1024
+#define MMC_BOOT_BAM_WR_FIFO_SIZE	1024
 
 #define MMC_BOOT_BAM_READ_PIPE_INDEX	1
 #define MMC_BOOT_BAM_WRITE_PIPE_INDEX	2
