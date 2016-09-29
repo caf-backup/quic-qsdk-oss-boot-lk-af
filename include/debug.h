@@ -56,6 +56,11 @@ int _dvprintf(const char *fmt, va_list ap);
 #define dprintf(level, x...) do { if ((level) <= DEBUGLEVEL) { _dprintf(x); } } while (0)
 #define dvprintf(level, x...) do { if ((level) <= DEBUGLEVEL) { _dvprintf(x); } } while (0)
 
+#define critical(...)	dprintf(CRITICAL, __VA_ARGS__)
+#define always(...)	dprintf(ALWAYS, __VA_ARGS__)
+#define info(...)	dprintf(INFO, __VA_ARGS__)
+#define spew(...)	dprintf(SPEW, __VA_ARGS__)
+
 /* input */
 int dgetc(char *c, bool wait);
 

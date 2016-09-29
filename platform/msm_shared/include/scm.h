@@ -58,13 +58,19 @@ typedef struct {
 } img_req;
 
 #define SCM_SVC_SSD                 7
+#define SCM_SVC_IO_ACCESS	0x5
 #define SSD_DECRYPT_ID              0x01
 #define SSD_ENCRYPT_ID              0x02
+
+#define SCM_IO_READ     1
+#define SCM_IO_WRITE    2
 
 static uint32 smc(uint32 cmd_addr);
 
 int decrypt_scm(uint32_t ** img_ptr, uint32_t * img_len_ptr);
 int encrypt_scm(uint32_t ** img_ptr, uint32_t * img_len_ptr);
+int scm_call_atomic1(uint32_t svc, uint32_t cmd, uint32_t arg1);
+int scm_call_atomic2(uint32_t svc, uint32_t cmd, uint32_t arg1, uint32_t arg2);
 
 #define SCM_SVC_FUSE                0x08
 #define SCM_BLOW_SW_FUSE_ID         0x01

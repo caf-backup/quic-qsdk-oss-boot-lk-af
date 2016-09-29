@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2013, 2016 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -123,8 +123,8 @@ uint32_t dml_base;
 uint32_t dma_enabled = false;
 static struct bam_instance bam;
 
-#define MMC_BOOT_BAM_RD_FIFO_SIZE	128
-#define MMC_BOOT_BAM_WR_FIFO_SIZE	128
+#define MMC_BOOT_BAM_RD_FIFO_SIZE	1024
+#define MMC_BOOT_BAM_WR_FIFO_SIZE	1024
 
 #define MMC_BOOT_BAM_READ_PIPE_INDEX	1
 #define MMC_BOOT_BAM_WRITE_PIPE_INDEX	2
@@ -1523,6 +1523,13 @@ mmc_boot_write_to_card(struct mmc_boot_host *host,
 	/* Wait for the MMC_BOOT_MCI_DATA_CTL write to go through. */
 	mmc_mclk_reg_wr_delay();
 
+#if MMC_BOOT_BAM
+	if (dma_enabled) {
+		/* Wait for DML trasaction to end */
+		mmc_boot_dml_wait_consumer_idle();
+	}
+#endif
+
 	/* write data to FIFO */
 	mmc_ret =
 	    mmc_boot_data_transfer(in, data_len, MMC_BOOT_DATA_WRITE);
@@ -1569,13 +1576,6 @@ mmc_boot_write_to_card(struct mmc_boot_host *host,
 		}
 	}
 	while (1);
-
-#if MMC_BOOT_BAM
-	if (dma_enabled) {
-		/* Wait for DML trasaction to end */
-		mmc_boot_dml_wait_consumer_idle();
-	}
-#endif
 
 	/* Reset DPSM */
 	writel(0, MMC_BOOT_MCI_DATA_CTL);
@@ -3211,7 +3211,14 @@ static int mmc_bam_init(uint32_t bam_base)
 
 	/* Programs the minimum threshold for BAM transfer*/
 	bam.threshold = MMC_DEFAULT_CNT_THRSHLD;
-        bam.max_desc_len = 0xFFFF;
+
+	/* Align descriptor size to 512 bytes, BAM needs each buffer
+	 * address to be aligned with 512 bytes. The desc_len field has 16 bits, 
+	 * 0xFE00 alignes the buffers to 512 bytes, same time uses the maximum 
+	 * possible buffer size in each descriptor.
+	 */
+        bam.max_desc_len = 0xFE00;
+
         bam.ee = 0;
 	/* Initialize MMC BAM */
 	bam_init(&bam);
@@ -3299,7 +3306,8 @@ mmc_boot_bam_setup_desc(unsigned int *data_ptr,
 	{
 		mmc_boot_dml_consumer_trans_init();
 		mmc_ret = bam_add_desc(&bam, MMC_BOOT_BAM_WRITE_PIPE_INDEX,
-					(unsigned char *)data_ptr, data_len, 0);
+					(unsigned char *)data_ptr, data_len,
+					BAM_DESC_EOT_FLAG | BAM_DESC_EOB_FLAG);
 	}
 
 	/* Update return value enums */

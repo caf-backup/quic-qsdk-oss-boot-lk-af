@@ -28,6 +28,7 @@
 #include <crypto_hash.h>
 #include <board.h>
 #include <target/board.h>
+#include <partition_parser.h>
 
 board_ipq806x_params_t *gboard_param;
 
@@ -1399,5 +1400,78 @@ board_ipq806x_params_t *get_board_param(unsigned int machid)
 	for (;;);
 
 	return NULL;
+}
+
+static inline int
+valid_mac_addr(const unsigned char *mac)
+{
+	if (!mac ||
+            (mac[0] & 1) ||	/* broadcast/multicast addresses */
+	    ((mac[0] == 0) && (mac[1] == 0) && (mac[2] == 0) &&
+             (mac[3] == 0) && (mac[4] == 0) && (mac[5] == 0)))
+		return 0;	/* Invalid */
+
+	return 1;		/* Valid */
+}
+
+#define IPQ_GMAC_COUNT		4
+
+#define MAC_ADDR_FMT		"%02x:%02x:%02x:%02x:%02x:%02x"
+#define MAC_ADDR_ARG(x)		(x)[0], (x)[1], (x)[2], (x)[3], (x)[4], (x)[5]
+
+void update_mac_addrs(void *fdt)
+{
+	int i, j, index;
+	unsigned long long off;
+	unsigned char *mac;
+	char eth[] = { "ethernetX" };
+
+	index = partition_get_index("0:ART");
+	if (index == INVALID_PTN) {
+		critical("ART partition not found, can't get MAC addresses\n");
+		return;
+	}
+
+	off = partition_get_offset(index);
+	if (off == 0ull) {
+		critical("ART partition offset invalid\n");
+		return;
+	}
+
+	mac = memalign(BLOCK_SIZE, BLOCK_SIZE);
+	if (mmc_read(off, mac, BLOCK_SIZE)) {
+		critical("Could not read ART partition\n");
+		return;
+	}
+
+	for (i = j = 0; i < IPQ_GMAC_COUNT; i++) {
+		char *p = &mac[j * 6];
+
+		sprintf(eth, "ethernet%d", i);
+
+		if (!valid_mac_addr(p)) {
+			critical("Ignoring " MAC_ADDR_FMT " for %s\n",
+					MAC_ADDR_ARG(p), eth);
+			j++;
+			continue;
+		}
+
+		index = fdt_path_offset(fdt, eth);
+		if (index < 0) {
+			info("Skipping %s\n", eth);
+			continue;
+		}
+
+		info("Setting " MAC_ADDR_FMT " for %s\n", MAC_ADDR_ARG(p), eth);
+
+		if (fdt_setprop(fdt, index, "local-mac-address", p, 6) < 0) {
+			critical("DT update [" MAC_ADDR_FMT "] failed for %s\n",
+					MAC_ADDR_ARG(p), eth);
+			continue;
+		}
+		j++;
+	}
+
+	free(mac);
 }
 

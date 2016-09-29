@@ -45,6 +45,10 @@
 #include <crypto_hash.h>
 #include <board.h>
 #include <target/board.h>
+#include <scm.h>
+
+#define APPS_DLOAD_MAGIC1	0xE47B337D
+#define APPS_DLOAD_MAGIC2	0x0501CAB0
 
 extern void dmb(void);
 
@@ -145,6 +149,19 @@ unsigned check_reboot_mode(void)
 {
 	unsigned restart_reason = 0;
 
+	/*
+	 * The kernel did not shutdown properly in the previous boot.
+	 * The SBLs would not have loaded RPM firmware, proceeding with
+	 * the boot is not possible. Reboot the system cleanly.
+	 */
+	if ((readl(MSM_APPS_DLOAD_MAGIC1_ADDR) == APPS_DLOAD_MAGIC1) &&
+	    (readl(MSM_APPS_DLOAD_MAGIC2_ADDR) == APPS_DLOAD_MAGIC2)) {
+		dprintf(CRITICAL, "Apps Dload Magic set. Rebooting...\n");
+		writel(0, MSM_APPS_DLOAD_MAGIC1_ADDR);
+		writel(0, MSM_APPS_DLOAD_MAGIC2_ADDR);
+		reboot_device(0);
+	}
+
 	/* Read reboot reason and scrub it */
 	restart_reason = readl(RESTART_REASON_ADDR);
 	writel(0x00, RESTART_REASON_ADDR);
@@ -211,6 +228,13 @@ int target_cont_splash_screen()
 /* Do target specific usb initialization */
 void target_usb_init(void)
 {
+	int ret;
+	/* Select USB 2.0 */
+	ret = scm_call_atomic2(SCM_SVC_IO_ACCESS,SCM_IO_WRITE,
+			TCSR_USB_CONTROLLER_TYPE_SEL, USB_CONT_TYPE_USB_20);
+	if (ret) {
+		dprintf(CRITICAL, "Failed to select USB controller type as USB2.0, scm call returned error (0x%x)\n", ret);
+	}
 }
 
 void target_mmc_init(unsigned char slot, unsigned int base)
