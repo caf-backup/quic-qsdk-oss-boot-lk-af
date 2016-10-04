@@ -398,7 +398,11 @@ unsigned char *update_cmdline(const char * cmdline)
 	if (cmdline_len > 0) {
 		const char *src;
 		char *dst = malloc((cmdline_len + 4) & (~3));
-		assert(dst != NULL);
+		if (!dst) {
+			dprintf(CRITICAL, "%s:malloc failed for cmdline\n",
+				__func__);
+			return NULL;
+		}
 
 		/* Save start ptr for debug print */
 		cmdline_final = dst;
@@ -965,7 +969,11 @@ int boot_linux_from_mmc(void)
 			memmove((void *) dt_buf, (char *)dt_table_offset, page_size);
 
 			/* Restriction that the device tree entry table should be less than a page*/
-			ASSERT(((table->num_entries * sizeof_dt_entry(table)) + DEV_TREE_HEADER_SIZE) < hdr->page_size);
+			if (((table->num_entries * sizeof_dt_entry(table)) + DEV_TREE_HEADER_SIZE) >= hdr->page_size) {
+				dprintf(CRITICAL, "%s: ERROR: device tree entry table is not less than a page",
+					__func__);
+				return -1;
+			}
 
 			/* Validate the device tree table header */
 			if((table->magic != DEV_TREE_MAGIC) && (table->version > DEV_TREE_VERSION)) {
@@ -1036,7 +1044,11 @@ int boot_linux_from_mmc(void)
 			table = (struct dt_table*) dt_buf;
 
 			/* Restriction that the device tree entry table should be less than a page*/
-			ASSERT(((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
+			if (((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) >= hdr->page_size) {
+				dprintf(CRITICAL, "%s: ERROR: device tree entry table is not less than a page\n",
+					__func__);
+				return -1;
+			}
 
 			/* Validate the device tree table header */
 			if((table->magic != DEV_TREE_MAGIC) && (table->version != DEV_TREE_VERSION)) {
@@ -1286,7 +1298,11 @@ int boot_linux_from_flash(void)
 			table = (struct dt_table*) dt_buf;
 
 			/* Restriction that the device tree entry table should be less than a page*/
-			ASSERT(((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
+			if (((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) >= hdr->page_size) {
+				dprintf(CRITICAL, "%s: ERROR: device tree entry table is not less than a page",
+					__func__);
+				return -1;
+			}
 
 			/* Validate the device tree table header */
 			if((table->magic != DEV_TREE_MAGIC) && (table->version != DEV_TREE_VERSION)) {
@@ -1530,7 +1546,11 @@ int copy_dtb(uint8_t *boot_image_start)
 		table = boot_image_start + dt_image_offset;
 
 		/* Restriction that the device tree entry table should be less than a page*/
-		ASSERT(((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
+		if (((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) >= hdr->page_size) {
+			dprintf(CRITICAL, "%s: ERROR: device tree entry table is not less than a page",
+				__func__);
+			return -1;
+		}
 
 		/* Validate the device tree table header */
 		if((table->magic != DEV_TREE_MAGIC) && (table->version != DEV_TREE_VERSION)) {
@@ -2325,6 +2345,10 @@ int update_device_tree(const void * fdt, char *cmdline,
 	offset = fdt_path_offset(fdt,"/memory");
 
 	memory_reg = target_dev_tree_mem(&len);
+	if(!memory_reg) {
+		dprintf(CRITICAL, "ERROR: %s:target_dev_tree_mem failed\n",__func__);
+		return -1;
+	}
 
 	/* Adding the memory values to the reg property */
 	ret = fdt_setprop(fdt, offset, "reg", memory_reg, sizeof(uint32_t) * len * 2);
@@ -2344,6 +2368,11 @@ int update_device_tree(const void * fdt, char *cmdline,
 
 	/* Adding the cmdline to the chosen node */
 	final_cmdline = update_cmdline(cmdline);
+	if(!final_cmdline) {
+		dprintf(CRITICAL, "ERROR: %s:update_cmdline failed\n",__func__);
+		return -1;
+	}
+
 	ret = fdt_setprop_string(fdt, offset, "bootargs", final_cmdline);
 	if(ret)
 	{
