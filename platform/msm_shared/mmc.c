@@ -1975,7 +1975,7 @@ static unsigned int mmc_boot_send_app_cmd(unsigned int rca)
 static unsigned int mmc_boot_sd_init_card(struct mmc_boot_card *card)
 {
 	unsigned int i, mmc_ret;
-	unsigned int ocr_cmd_arg;
+	unsigned int ocr_cmd_arg = 0;
 	struct mmc_boot_command cmd;
 
 	memset((struct mmc_boot_command *)&cmd, 0,
@@ -2635,6 +2635,8 @@ mmc_wp(unsigned int sector, unsigned int size, unsigned char set_clear_wp)
 	}
 	else
 		return MMC_BOOT_E_FAILURE;
+
+	return rc;
 }
 
 void mmc_wp_test(void)
@@ -3316,6 +3318,8 @@ mmc_boot_bam_setup_desc(unsigned int *data_ptr,
 		dprintf(CRITICAL, "MMC BAM transfer error: %d\n", mmc_ret);
 		mmc_ret = MMC_BOOT_E_FAILURE;
 	}
+
+	return mmc_ret;
 }
 
 #endif
@@ -3418,7 +3422,7 @@ static int cmd_mmc(int argc, const cmd_args *argv)
 			return -1;
 		}
 	} else {
-		printf(argv[1].str);
+		printf("%.16s", argv[1].str);
 		printf(mmc_help);
 		return -1;
 	}
