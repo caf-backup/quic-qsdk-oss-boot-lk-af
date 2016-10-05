@@ -89,7 +89,11 @@ target_dev_tree_mem(uint32_t * num_of_entries)
 	int overflow = 0;
 
 	/* Make sure RAM partition table is initialized */
-	ASSERT(smem_ram_ptable_init(&ram_ptable));
+	if (!(smem_ram_ptable_init(&ram_ptable))) {
+		dprintf(CRITICAL, "%s: ERROR: RAM partition table is not initialized \n",
+			__func__);
+		return NULL;
+	}
 
 	n = ARRAY_SIZE(fixed_memory);
 	last_fixed_add = fixed_memory[n - 1].start_addr +
@@ -126,6 +130,12 @@ target_dev_tree_mem(uint32_t * num_of_entries)
 	*num_of_entries = num_of_sections;
 	meminfo_ptr =
 	    (uint32_t *) malloc(sizeof(uint32_t) * num_of_sections * 2);
+
+	if (!meminfo_ptr) {
+		dprintf(CRITICAL, "%s: malloc failed\n",__func__);
+		return NULL;
+	}
+
 	ptr = meminfo_ptr;
 
 #if 0

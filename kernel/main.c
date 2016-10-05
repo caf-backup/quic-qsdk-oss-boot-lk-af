@@ -64,6 +64,7 @@ static void call_constructors(void)
 void kmain(void) __NO_RETURN __EXTERNALLY_VISIBLE;
 void kmain(void)
 {
+	thread_t *thr_ptr = NULL;
 	// get us into some sort of thread context
 	thread_init_early();
 
@@ -101,7 +102,9 @@ void kmain(void)
 #if (!ENABLE_NANDWRITE)
 	// create a thread to complete system initialization
 	dprintf(SPEW, "creating bootstrap completion thread\n");
-	thread_resume(thread_create("bootstrap2", &bootstrap2, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
+	thr_ptr = thread_create("bootstrap2", &bootstrap2, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+	if (thr_ptr != NULL)
+		thread_resume(thr_ptr);
 
 	// enable interrupts
 	exit_critical_section();
