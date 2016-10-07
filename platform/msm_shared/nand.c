@@ -3322,7 +3322,19 @@ void flash_init(void)
 	ASSERT(flash_ptable == NULL);
 
 	flash_ptrlist = memalign(32, 1024);
+	if (flash_ptrlist == NULL) {
+		dprintf(CRITICAL,
+			"ERROR: could not allocate memory for flash_ptrlist\n");
+		return;
+	}
+
 	flash_cmdlist = memalign(32, 1024);
+	if (flash_cmdlist == NULL) {
+		dprintf(CRITICAL,
+			"ERROR: could not allocate memory for flash_cmdlist\n");
+		return;
+	}
+
 	flash_data = memalign(32, 4096 + 128);
 	flash_spare = memalign(32, 128);
 
@@ -3339,6 +3351,12 @@ void flash_init(void)
 	bbtbl =
 	    (unsigned int *)malloc(sizeof(unsigned int) *
 				   flash_info.num_blocks);
+	if (bbtbl == NULL) {
+		dprintf(CRITICAL,
+			"ERROR: could not allocate memory for badblock table\n");
+		return;
+	}
+
 	for (i = 0; i < flash_info.num_blocks; i++)
 		bbtbl[i] = -1;
 }

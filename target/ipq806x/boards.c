@@ -1439,6 +1439,10 @@ void update_mac_addrs(void *fdt)
 	}
 
 	mac = memalign(BLOCK_SIZE, BLOCK_SIZE);
+	if (mac == NULL) {
+		critical("Could not allocate sufficient memory to read MAC information\n");
+		return;
+	}
 	if (mmc_read(off, mac, BLOCK_SIZE)) {
 		critical("Could not read ART partition\n");
 		return;

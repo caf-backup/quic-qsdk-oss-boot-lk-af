@@ -725,6 +725,10 @@ int udc_init(struct udc_device *dev)
 		/* language 0x0409 is US English */
 		struct udc_descriptor *desc =
 		    udc_descriptor_alloc(TYPE_STRING, 0, 4);
+		if (!desc) {
+			dprintf(CRITICAL, "udc_descriptor_alloc failed\n");
+			return -1;
+		}
 		desc->data[2] = 0x09;
 		desc->data[3] = 0x04;
 		udc_descriptor_register(desc);
@@ -908,6 +912,10 @@ int udc_start(void)
 	/* create our configuration descriptor */
 	size = 9 + udc_ifc_desc_size(the_gadget);
 	desc = udc_descriptor_alloc(TYPE_CONFIGURATION, 0, size);
+	if (!desc) {
+		dprintf(CRITICAL, "udc_descriptor_alloc failed\n");
+		return -1;
+	}
 	data = desc->data;
 	data[0] = 0x09;
 	data[2] = size;
