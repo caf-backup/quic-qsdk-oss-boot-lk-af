@@ -26,8 +26,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __PLATFORM_MSM8960_GPIO_H
-#define __PLATFORM_MSM8960_GPIO_H
+#ifndef __PLATFORM_IPQ40XX_GPIO_H
+#define __PLATFORM_IPQ40XX_GPIO_H
 
 /* GPIO TLMM: Direction */
 #define GPIO_INPUT		0
@@ -40,8 +40,8 @@
 /* GPIO TLMM: Pullup/Pulldown */
 #define GPIO_NO_PULL		0
 #define GPIO_PULL_DOWN		1
-#define GPIO_KEEPER		2
-#define GPIO_PULL_UP		3
+#define GPIO_PULL_UP    	2
+#define GPIO_NOT_DEF    	3
 
 /* GPIO TLMM: Drive Strength */
 #define GPIO_2MA		0
@@ -57,9 +57,26 @@
 #define GPIO_OE_ENABLE		1
 #define GPIO_OE_DISABLE		0
 
+/* GPIO VM */
+#define GPIO_VM_ENABLE  1
+#define GPIO_VM_DISABLE 0
+
+/* GPIO OD */
+#define GPIO_OD_ENABLE  1
+#define GPIO_OD_DISABLE 0
+
+/* GPIO PULLUP RES */
+#define GPIO_PULL_RES0  0
+#define GPIO_PULL_RES1  1
+#define GPIO_PULL_RES2  2
+#define GPIO_PULL_RES3  3
+
+ 
 #define GSBI_1			1
 #define GSBI_2			2
 #define GSBI_4			4
+
+#define BLSP_1			1
 
 void gpio_config_i2c(uint8_t gsbi_id);
 void gpio_config_uart_dm(uint8_t id);

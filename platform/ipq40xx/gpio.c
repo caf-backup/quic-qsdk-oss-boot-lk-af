@@ -35,18 +35,45 @@
 #include <sys/types.h>
 #include <smem.h>
 
-void gpio_tlmm_config(uint32_t gpio, uint8_t func,
-		      uint8_t dir, uint8_t pull,
-		      uint8_t drvstr, uint32_t enable)
+void gpio_tlmm_config(unsigned int gpio, unsigned int func,
+		unsigned int out, unsigned int pull,
+		unsigned int drvstr, unsigned int oe,
+		unsigned int gpio_vm, unsigned int gpio_od_en,
+		unsigned int gpio_pu_res)
 {
 	unsigned int val = 0;
 	val |= pull;
 	val |= func << 2;
 	val |= drvstr << 6;
-	val |= enable << 9;
+	val |= oe << 9;
+	val |= gpio_vm << 11;
+	val |= gpio_od_en << 12;
+	val |= gpio_pu_res << 13;
+
 	unsigned int *addr = (unsigned int *)GPIO_CONFIG_ADDR(gpio);
 	writel(val, addr);
+
+	/* Output value is only relevant if GPIO has been configured for fixed
+	 * output setting - i.e. func == 0 */
+	if (func == 0) {
+		addr = (unsigned int *)GPIO_IN_OUT_ADDR(gpio);
+		val = readl(addr);
+		val |= out << 1;
+		writel(val, addr);
+	}
+
 	return;
+}
+
+void gpio_set_value(unsigned int gpio, unsigned int out)
+{
+	unsigned int *addr = (unsigned int *)GPIO_IN_OUT_ADDR(gpio);
+	unsigned int val = 0;
+
+	val = readl(addr);
+	val &= ~(0x2);
+	val |= out << 1;
+	writel(val, addr);
 }
 
 void gpio_set(uint32_t gpio, uint32_t dir)
@@ -61,16 +88,17 @@ uint32_t gpio_get(uint32_t gpio)
 	unsigned int *addr = (unsigned int *)GPIO_IN_OUT_ADDR(gpio);
 	return readl(addr);
 }
-
 void ipq_configure_gpio(gpio_func_data_t *gpio, int count)
 {
 	int i;
 
 	for (i = 0; i < count; i++) {
-		gpio_tlmm_config(gpio->gpio, gpio->func, gpio->out,
-				 gpio->pull, gpio->drvstr, gpio->oe);
-		gpio++;
-	}
+                gpio_tlmm_config(gpio->gpio, gpio->func, gpio->out,
+                        gpio->pull, gpio->drvstr, gpio->oe,
+                        gpio->gpio_vm, gpio->gpio_od_en, gpio->gpio_pu_res);
+                gpio++;
+        }
+
 }
 
 /* Configure gpio for uart - based on gsbi id */
@@ -83,21 +111,5 @@ void gpio_config_uart_dm(uint8_t ignore)
 
 void gpio_config_i2c(uint8_t id)
 {
-	switch (id) {
-	case GSBI_ID_1:
-		writel(0x2, GSBIn_UART_I2C_SEL(0));
-		gpio_tlmm_config(0, 4, GPIO_OUTPUT, GPIO_PULL_UP,
-					GPIO_2MA, GPIO_OE_ENABLE);
-		gpio_tlmm_config(1, 4, GPIO_OUTPUT, GPIO_PULL_UP,
-					GPIO_2MA, GPIO_OE_ENABLE);
-		break;
-	case GSBI_ID_3:
-		gpio_tlmm_config(9, 1, GPIO_OUTPUT, GPIO_PULL_UP,
-					GPIO_16MA, GPIO_OE_ENABLE);
-		gpio_tlmm_config(8, 1, GPIO_OUTPUT, GPIO_PULL_UP,
-					GPIO_16MA, GPIO_OE_ENABLE);
-		break;
-	default:
-		dprintf(CRITICAL, "gpio_config_i2c(%hhu)\n", id);
-	}
+	ipq_configure_gpio(gboard_param->i2c_cfg->i2c_gpio, NO_OF_I2C_GPIOS);
 }
