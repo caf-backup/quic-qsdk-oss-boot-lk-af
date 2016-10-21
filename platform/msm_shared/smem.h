@@ -33,6 +33,7 @@
 
 #include <sys/types.h>
 
+#define SMEM_MAX_PMIC_DEVICES           3
 struct smem_proc_comm {
 	unsigned command;
 	unsigned status;
@@ -132,6 +133,24 @@ struct smem_board_info_v7 {
 	unsigned pmic_type;
 	unsigned pmic_version;
 	unsigned buffer_align;	//Need for 8 bytes alignment while reading from shared memory.
+};
+
+struct smem_pmic_info {
+	unsigned pmic_type;
+	unsigned pmic_version;
+};
+
+struct smem_board_info_v8 {
+	struct smem_board_info_v3 board_info_v3;
+	unsigned platform_version;
+	unsigned fused_chip;
+	unsigned platform_subtype;
+	struct smem_pmic_info pmic_info[SMEM_MAX_PMIC_DEVICES];
+	/*
+	 * Need for 8 bytes alignment
+	 * while reading from shared memory
+	 */
+	uint32_t foundry_id; /* Used as foundry_id only for v9 and used as an alignment field for v8 */
 };
 
 typedef struct {
