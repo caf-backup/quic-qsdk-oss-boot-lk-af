@@ -30,1365 +30,1395 @@
 #include <target/board.h>
 #include <partition_parser.h>
 
-board_ipq806x_params_t *gboard_param;
+board_ipq40xx_params_t *gboard_param;
 
-static inline int gmac_cfg_is_valid(ipq_gmac_board_cfg_t *cfg)
-{
-	/*
-	 * 'cfg' is valid if and only if
-	 *	unit number is non-negative and less than IPQ_GMAC_NMACS.
-	 *	'cfg' pointer lies within the array range of
-	 *		board_ipq806x_params_t->gmac_cfg[]
-	 */
-	return ((cfg >= &gboard_param->gmac_cfg[0]) &&
-		(cfg < &gboard_param->gmac_cfg[IPQ_GMAC_NMACS]) &&
-		(cfg->unit >= 0) && (cfg->unit < IPQ_GMAC_NMACS));
-}
-
-unsigned int get_board_index(unsigned int machid);
 void ipq_configure_gpio(gpio_func_data_t *gpio, uint count);
 
-#define MSM_SDC1_BASE      0x12400000
-
-typedef struct {
-	uint base;
-	uint clk_mode;
-	struct mmc *mmc;
-	int dev_num;
-} ipq_mmc;
-
-gpio_func_data_t gmac0_gpio[] = {
+gpio_func_data_t mmc_ap_dk07[] = {
 	{
-		.gpio = 0,
-		.func = 1,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
+		.gpio = 23,
+		.func = 1,	/* sdio0 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
 	},
 	{
-		.gpio = 1,
-		.func = 1,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_ENABLE
+		.gpio = 24,
+		.func = 1,	 /* sdio1 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
 	},
 	{
-		.gpio = 2,
-		.func = 0,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
+		.gpio = 25,
+		.func = 1,	 /* sdio2 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
 	},
 	{
-		.gpio = 66,
-		.func = 0,
-		.pull = GPIO_NO_PULL,
+		.gpio = 26,
+		.func = 1,	 /* sdio3 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 27,
+		.func = 1,	 /* sdio_clk */
+		.pull = GPIO_PULL_UP,
 		.drvstr = GPIO_16MA,
-		.oe = GPIO_OE_DISABLE
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 28,
+		.func = 1,	 /* sdio_cmd */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
 	},
 };
 
-gpio_func_data_t gmac1_gpio[] = {
+gpio_func_data_t mmc_ap_dk04[] = {
 	{
-		.gpio = 0,
+		.gpio = 23,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 24,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 25,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 26,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 27,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 28,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 29,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 30,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 31,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 32,
 		.func = 1,
 		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
+		.drvstr = GPIO_10MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
 	},
+};
+
+
+gpio_func_data_t spi_nor_bga[] = {
 	{
-		.gpio = 1,
+		.gpio = 12,
 		.func = 1,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_ENABLE
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
 	},
 	{
-		.gpio = 51,
-		.func = 2,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
+		.gpio = 13,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
 	},
+	{
+		.gpio = 14,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 15,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+};
+
+gpio_func_data_t nand_gpio_bga[] = {
 	{
 		.gpio = 52,
-		.func = 2,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 53,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 54,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 55,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 56,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 57,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 58,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
 	},
 	{
 		.gpio = 59,
-		.func = 2,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
 	},
 	{
 		.gpio = 60,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 61,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 62,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 63,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 64,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 65,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 66,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 67,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 68,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 69,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+
+};
+
+gpio_func_data_t rgmii_gpio_cfg[] = {
+	{
+		.gpio = 22,
+		.func = 1,	/* RGMMI0 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+	{
+		.gpio = 23,
+		.func = 2,	/* RGMII1 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+	{
+		.gpio = 24,
+		.func = 2,	/* RGMII2 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+	{
+		.gpio = 25,
+		.func = 2,	/* RGMII3 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+	{
+		.gpio = 26,
+		.func = 2,	/* RGMII RX */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+	{
+		.gpio = 27,
+		.func = 2,	/* RGMII_TXC */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+	{
+		.gpio = 28,
+		.func = 2,	/* RGMII0 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+	{
+		.gpio = 29,
+		.func = 2,	/* RGMII1 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+	{
+		.gpio = 30,
+		.func = 2,	/* RGMII2 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+	{
+		.gpio = 31,
+		.func = 2,	/* RGMII3 */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+	{
+		.gpio = 32,
+		.func = 2,	/* RGMII RX_C */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+	{
+		.gpio = 33,
+		.func = 1,	/* RGMII TX */
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_16MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_DISABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES0
+	},
+};
+
+gpio_func_data_t sw_gpio_bga[] = {
+	{
+		.gpio = 6,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 7,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 47,
+		.func = 0,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_ENABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+};
+
+gpio_func_data_t ap_dk04_1_c2_sw_gpio_bga[] = {
+	{
+		.gpio = 6,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 7,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 67,
+		.func = 0,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_ENABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+};
+
+gpio_func_data_t ap_dk06_1_c1_sw_gpio_bga[] = {
+	{
+		.gpio = 6,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 7,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 19,
+		.func = 0,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_ENABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		/* overriding the default configuration of gpio52 */
+		.gpio = 52,
+		.func = 0,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+};
+
+gpio_func_data_t ap_dk07_1_c1_sw_gpio_bga[] = {
+	{
+		.gpio = 6,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 7,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 41,
+		.func = 0,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_ENABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		/* overriding the default configuration of gpio52 */
+		.gpio = 52,
+		.func = 0,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+};
+
+gpio_func_data_t db_dk_2_1_sw_gpio_bga[] = {
+	{
+		.gpio = 6,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 7,
+		.func = 1,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+};
+
+gpio_func_data_t sw_gpio_qfn[] = {
+	{
+		.gpio = 52,
 		.func = 2,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 53,
+		.func = 2,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 59,
+		.func = 0,
 		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_ENABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+};
+
+gpio_func_data_t ap_dk01_1_c2_sw_gpio_qfn[] = {
+	{
+		.gpio = 52,
+		.func = 2,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 53,
+		.func = 2,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+	{
+		.gpio = 62,
+		.func = 0,
+		.pull = GPIO_NO_PULL,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_ENABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2
+	},
+};
+
+gpio_func_data_t uart1_gpio_dk01[] = {
+	{
+		.gpio = 60,
+		.func = 2,
+		.pull = GPIO_PULL_DOWN,
+		.oe = GPIO_OE_ENABLE
 	},
 	{
 		.gpio = 61,
 		.func = 2,
 		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 62,
-		.func = 2,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 27,
-		.func = 2,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_ENABLE
-	},
-	{
-		.gpio = 28,
-		.func = 2,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_ENABLE
-	},
-	{
-		.gpio = 29,
-		.func = 2,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_ENABLE
-	},
-	{
-		.gpio = 30,
-		.func = 2,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_ENABLE
-	},
-	{
-		.gpio = 31,
-		.func = 2,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_ENABLE
-	},
-	{
-		.gpio = 32,
-		.func = 2,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
 		.oe = GPIO_OE_ENABLE
 	},
 };
 
-gpio_func_data_t gmac3_gpio[] = {
+gpio_func_data_t uart1_gpio_dk04[] = {
 	{
-		.gpio = 0,
+		.gpio = 16,
+		.func = 1,
+		.pull = GPIO_PULL_DOWN,
+		.oe = GPIO_OE_ENABLE
+	},
+	{
+		.gpio = 17,
 		.func = 1,
 		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
+		.oe = GPIO_OE_ENABLE
 	},
+};
+
+gpio_func_data_t uart2_gpio[] = {
 	{
-		.gpio = 1,
+		.gpio = 8,
 		.func = 1,
 		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
 		.oe = GPIO_OE_ENABLE
 	},
 	{
-		.gpio = 2,
-		.func = 0,
+		.gpio = 9,
+		.func = 1,
 		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
+		.oe = GPIO_OE_ENABLE
+	},
+};
+
+#ifdef CONFIG_IPQ40XX_I2C
+gpio_func_data_t i2c0_gpio[] = {
+	{
+		.gpio = 20,
+		.func = 1,
+		.pull = GPIO_NO_PULL,
+		.oe = GPIO_OE_ENABLE
 	},
 	{
-		.gpio = 32,
-		.func = 0,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
-	},
-};
-
-gpio_func_data_t storm_switch_gpio = {
-	.gpio = 26,
-	.func = 0,
-	.out = GPIO_OUT_LOW,
-	.pull = GPIO_PULL_DOWN,
-	.drvstr = GPIO_8MA,
-	.oe = GPIO_OE_ENABLE
-};
-
-gpio_func_data_t reset_s17_gpio = {
-	.gpio = 63,
-	.func = 0,
-	.out = GPIO_OUTPUT,
-	.pull = GPIO_PULL_DOWN,
-	.drvstr = GPIO_8MA,
-	.oe = GPIO_OE_ENABLE
-};
-
-gpio_func_data_t reset_ak01_8033_gpio = {
-	.gpio = 32,
-	.func = 0,
-	.out = GPIO_OUTPUT,
-	.pull = GPIO_PULL_UP,
-	.drvstr = GPIO_12MA,
-	.oe = GPIO_OE_ENABLE
-};
-
-gpio_func_data_t ar8033_gpio[] = {
-	{
-		.gpio = 2,
-		.func = 0,
+		.gpio = 21,
+		.func = 1,
 		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_8MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 66,
-		.func = 0,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_16MA,
-		.oe = GPIO_OE_DISABLE
+		.oe = GPIO_OE_ENABLE
 	},
 };
+#endif
 
-#ifdef CONFIG_IPQ806X_PCI
-/* Address of PCIE20 PARF */
-#define PCIE20_0_PARF_PHYS      0x1b600000
-#define PCIE20_1_PARF_PHYS      0x1b800000
-#define PCIE20_2_PARF_PHYS      0x1ba00000
+uart_cfg_t uart1_console_uart_dk01 = {
+	.base           = GSBI_1,
+	.gsbi_base      = 0,
+	.uart_dm_base = UART1_DM_BASE,
+	.dbg_uart_gpio = uart1_gpio_dk01,
+};
 
-/* Address of PCIE20 ELBI */
-#define PCIE20_0_ELBI_PHYS      0x1b502000
-#define PCIE20_1_ELBI_PHYS      0x1b702000
-#define PCIE20_2_ELBI_PHYS      0x1b902000
+uart_cfg_t uart1_console_uart_dk04 = {
+	.base           = GSBI_1,
+	.gsbi_base      = 0,
+	.uart_dm_base = UART1_DM_BASE,
+	.dbg_uart_gpio = uart1_gpio_dk04,
+};
 
+uart_cfg_t uart2 = {
+	.base           = GSBI_1,
+	.gsbi_base      = 0,
+	.uart_dm_base = UART2_DM_BASE,
+	.dbg_uart_gpio = uart2_gpio,
+};
 
-/* Address of PCIE20 */
-#define PCIE20_0_PHYS           0x1b500000
-#define PCIE20_1_PHYS           0x1b700000
-#define PCIE20_2_PHYS           0x1b900000
-#define PCIE20_SIZE             SZ_4K
+#ifdef CONFIG_IPQ40XX_I2C
+i2c_cfg_t i2c0 = {
+	.i2c_base = I2C0_BASE,
+	.i2c_gpio = i2c0_gpio,
+};
+#endif
 
-#define PCIE20_0_AXI_BAR_PHYS	0x08000000
-#define PCIE20_0_AXI_BAR_SIZE	SZ_128M
-#define PCIE20_1_AXI_BAR_PHYS	0x2E000000
-#define PCIE20_1_AXI_BAR_SIZE	SZ_64M
-#define PCIE20_2_AXI_BAR_PHYS	0x32000000
-#define PCIE20_2_AXI_BAR_SIZE	SZ_64M
+#define ipq40xx_edma_cfg(_b, _pn, _p, ...)		\
+{							\
+	.base		= IPQ40XX_EDMA_CFG_BASE,	\
+	.unit		= _b,				\
+	.phy		= PHY_INTERFACE_MODE_##_p,	\
+	.phy_addr	= {.count = _pn, {__VA_ARGS__}},\
+	.phy_name	= "IPQ MDIO"#_b			\
+}
+
+#ifdef CONFIG_IPQ40XX_PCI
+
+#define PCIE_RST_GPIO		38
+#define PCIE_WAKE_GPIO		40
+#define PCIE_CLKREQ_GPIO	39
+
+#define PCIE20_0_PARF_PHYS	0x80000
+#define PCIE20_0_ELBI_PHYS	0x40000f20
+#define PCIE20_0_PHYS		0x40000000
+#define PCIE20_SIZE             0xf1d
+#define PCIE20_0_AXI_BAR_PHYS	0x40300000
+#define PCIE20_0_AXI_BAR_SIZE	0xd00000
+#define PCIE20_0_AXI_CONF	0x40100000
 #define PCIE_AXI_CONF_SIZE	SZ_1M
+#define PCIE20_0_RESET		0x0181D010
 
-#define MSM_PCIE_DEV_CFG_ADDR   0x01000000
+#define PCIE_RST_CTRL_PIPE_ARES			0x4
+#define PCIE_RST_CTRL_PIPE_STICKY_ARES		0x100
+#define PCIE_RST_CTRL_PIPE_PHY_AHB_ARES		0x800
+#define PCIE_RST_CTRL_AXI_M_ARES		0x1
+#define PCIE_RST_CTRL_AXI_M_STICKY_ARES		0x80
+#define PCIE_RST_CTRL_AXI_S_ARES		0x2
+#define PCIE_RST_CTRL_AHB_ARES			0x400
 
-#define PCIE20_PLR_IATU_VIEWPORT        0x900
-#define PCIE20_PLR_IATU_CTRL1           0x904
-#define PCIE20_PLR_IATU_CTRL2           0x908
-#define PCIE20_PLR_IATU_LBAR            0x90C
-#define PCIE20_PLR_IATU_UBAR            0x910
-#define PCIE20_PLR_IATU_LAR             0x914
-#define PCIE20_PLR_IATU_LTAR            0x918
-#define PCIE20_PLR_IATU_UTAR            0x91c
+#define MSM_PCIE_DEV_CFG_ADDR			0x01000000
 
-#define PCIE20_PARF_CONFIG_BITS        0x50
-#define PCIE20_ELBI_SYS_CTRL           0x04
+#define PCIE20_PLR_IATU_VIEWPORT		0x900
+#define PCIE20_PLR_IATU_CTRL1			0x904
+#define PCIE20_PLR_IATU_CTRL2			0x908
+#define PCIE20_PLR_IATU_LBAR			0x90C
+#define PCIE20_PLR_IATU_UBAR			0x910
+#define PCIE20_PLR_IATU_LAR			0x914
+#define PCIE20_PLR_IATU_LTAR			0x918
+#define PCIE20_PLR_IATU_UTAR			0x91c
 
+/* PCIE20_PARF_PHYS Registers */
+#define PARF_SLV_ADDR_SPACE_SIZE		0x16C
+#define SLV_ADDR_SPACE_SZ			0x40000000
+#define PCIE_0_PCIE20_PARF_LTSSM		0x1B0
+#define LTSSM_EN				(1 << 8)
+/* PCIE20_PHYS Registers */
+#define PCIE_0_PORT_FORCE_REG			0x708
+#define PCIE_0_ACK_F_ASPM_CTRL_REG		0x70C
+#define L1_ENTRANCE_LATENCY(x)			(x << 27)
+#define L0_ENTRANCE_LATENCY(x)			(x << 24)
+#define COMMON_CLK_N_FTS(x)			(x << 16)
+#define ACK_N_FTS(x)				(x << 8)
 
-#define PCIE20_0_RESET            (MSM_CLK_CTL_BASE + 0x22DC)
-#define PCIE20_1_RESET            (MSM_CLK_CTL_BASE + 0x3A9C)
-#define PCIE20_2_RESET            (MSM_CLK_CTL_BASE + 0x3ADC)
-#define PCIE20_CAP                     0x70
-#define PCIE20_CAP_LINKCTRLSTATUS      (PCIE20_CAP + 0x10)
+#define PCIE_0_GEN2_CTRL_REG			0x80C
+#define FAST_TRAINING_SEQ(x)			(x << 0)
+#define NUM_OF_LANES(x)				(x << 8)
+#define DIRECT_SPEED_CHANGE			(1 << 17)
 
-#define PCIE_RST_GPIO           3
-#define PCIE_1_RST_GPIO         48
-#define PCIE_2_RST_GPIO         63
-#define WIFI_PCIE_1_POWER_GPIO	9
-#define WIFI_PCIE_2_POWER_GPIO	26
+#define PCIE_0_TYPE0_STATUS_COMMAND_REG_1	0x004
+#define PCI_TYPE0_BUS_MASTER_EN			(1 << 2)
 
-gpio_func_data_t pci_0_rst_gpio = {
+#define PCIE_0_MISC_CONTROL_1_REG		0x8BC
+#define DBI_RO_WR_EN				(1 << 0)
+
+#define PCIE_0_LINK_CAPABILITIES_REG		0x07C
+#define PCIE_CAP_ASPM_OPT_COMPLIANCE		(1 << 22)
+#define PCIE_CAP_LINK_BW_NOT_CAP		(1 << 21)
+#define PCIE_CAP_DLL_ACTIVE_REP_CAP		(1 << 20)
+#define PCIE_CAP_L1_EXIT_LATENCY(x)		(x << 15)
+#define PCIE_CAP_L0S_EXIT_LATENCY(x)		(x << 12)
+#define PCIE_CAP_MAX_LINK_WIDTH(x)		(x << 4)
+#define PCIE_CAP_MAX_LINK_SPEED(x)		(x << 0)
+
+#define PCIE_0_DEVICE_CONTROL2_DEVICE_STATUS2_REG	0x098
+#define PCIE_CAP_CPL_TIMEOUT_DISABLE			(1 << 4)
+#define PCIE_0_TYPE0_LINK_CONTROL_LINK_STATUS_REG_1	0x080
+
+gpio_func_data_t pci_0_gpio_data[] = {
+	{
 		.gpio = PCIE_RST_GPIO,
-		.func = 1,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_12MA,
-		.oe = GPIO_OE_ENABLE
-};
-
-gpio_func_data_t pci_1_rst_gpio = {
-		.gpio = PCIE_1_RST_GPIO,
-		.func = 1,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_12MA,
-		.oe = GPIO_OE_ENABLE
-};
-
-gpio_func_data_t pci_2_rst_gpio = {
-		.gpio = PCIE_2_RST_GPIO,
-		.func = 1,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_12MA,
-		.oe = GPIO_OE_ENABLE
-};
-
-gpio_func_data_t wifi_pcie_1_power_gpio = {
-		.gpio = WIFI_PCIE_1_POWER_GPIO,
 		.func = 0,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_12MA,
-		.oe = GPIO_OE_ENABLE
-};
-
-gpio_func_data_t wifi_pcie_2_power_gpio = {
-		.gpio = WIFI_PCIE_2_POWER_GPIO,
+		.out = GPIO_OUT_HIGH,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_ENABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2,
+	},
+	{
+		.gpio = PCIE_WAKE_GPIO,
 		.func = 0,
+		.out = GPIO_OUT_LOW,
 		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_12MA,
-		.oe = GPIO_OE_ENABLE
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2,
+	},
+	{
+		.gpio = PCIE_CLKREQ_GPIO,
+		.func = 0,
+		.out = GPIO_OUT_HIGH,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_ENABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2,
+	},
 };
 
-clk_offset_t pcie_0_clk	= {
-	.aclk_ctl = PCIE_0_ACLK_CTL,
-	.pclk_ctl = PCIE_0_PCLK_CTL,
-	.hclk_ctl = PCIE_0_HCLK_CTL,
-	.aux_clk_ctl = PCIE_0_AUX_CLK_CTL,
-	.alt_ref_clk_ns = PCIE_0_ALT_REF_CLK_NS,
-	.alt_ref_clk_acr = PCIE_0_ALT_REF_CLK_ACR,
-	.aclk_fs = PCIE_0_ACLK_FS,
-	.pclk_fs = PCIE_0_PCLK_FS,
-	.parf_phy_refclk = PCIE20_0_PARF_PHY_REFCLK
+gpio_func_data_t pci_0_dk07_gpio_data[] = {
+	{
+		.gpio = PCIE_RST_GPIO,
+		.func = 0,
+		.out = GPIO_OUT_HIGH,
+		.pull = GPIO_PULL_DOWN,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_ENABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2,
+	},
+	{
+		.gpio = PCIE_WAKE_GPIO,
+		.func = 0,
+		.out = GPIO_OUT_LOW,
+		.pull = GPIO_PULL_UP,
+		.drvstr = GPIO_2MA,
+		.oe = GPIO_OE_DISABLE,
+		.gpio_vm = GPIO_VM_ENABLE,
+		.gpio_od_en = GPIO_OD_DISABLE,
+		.gpio_pu_res = GPIO_PULL_RES2,
+	},
 };
 
-clk_offset_t pcie_1_clk	= {
-	.aclk_ctl = PCIE_1_ACLK_CTL,
-	.pclk_ctl = PCIE_1_PCLK_CTL,
-	.hclk_ctl = PCIE_1_HCLK_CTL,
-	.aux_clk_ctl = PCIE_1_AUX_CLK_CTL,
-	.alt_ref_clk_ns = PCIE_1_ALT_REF_CLK_NS,
-	.alt_ref_clk_acr = PCIE_1_ALT_REF_CLK_ACR,
-	.aclk_fs = PCIE_1_ACLK_FS,
-	.pclk_fs = PCIE_1_PCLK_FS,
-	.parf_phy_refclk = PCIE20_1_PARF_PHY_REFCLK
-};
+#define TLMM_GPIO_OUT_1		0x01200004
+#define TLMM_GPIO_OE_1		0x01200084
 
-clk_offset_t pcie_2_clk	= {
-	.aclk_ctl = PCIE_2_ACLK_CTL,
-	.pclk_ctl = PCIE_2_PCLK_CTL,
-	.hclk_ctl = PCIE_2_HCLK_CTL,
-	.aux_clk_ctl = PCIE_2_AUX_CLK_CTL,
-	.alt_ref_clk_ns = PCIE_2_ALT_REF_CLK_NS,
-	.alt_ref_clk_acr = PCIE_2_ALT_REF_CLK_ACR,
-	.aclk_fs = PCIE_2_ACLK_FS,
-	.pclk_fs = PCIE_2_PCLK_FS,
-	.parf_phy_refclk = PCIE20_2_PARF_PHY_REFCLK
-};
-
-#define pcie_board_cfg(_id)	\
+#define pcie_board_cfg(_id)						\
 {									\
-	.pci_rst_gpio		= &pci_##_id##_rst_gpio,		\
+	.pci_gpio		= pci_##_id##_gpio_data,		\
+	.pci_gpio_count		= ARRAY_SIZE(pci_##_id##_gpio_data),	\
 	.parf			= PCIE20_##_id##_PARF_PHYS,		\
 	.elbi			= PCIE20_##_id##_ELBI_PHYS,		\
 	.pcie20			= PCIE20_##_id##_PHYS,			\
 	.axi_bar_start		= PCIE20_##_id##_AXI_BAR_PHYS,		\
 	.axi_bar_size		= PCIE20_##_id##_AXI_BAR_SIZE,		\
+	.axi_conf		= PCIE20_##_id##_AXI_CONF,		\
 	.pcie_rst		= PCIE20_##_id##_RESET,			\
-	.pci_clks		= &pcie_##_id##_clk			\
 }
 
-#define PCIE20_PARF_PHY_CTRL           0x40
-#define __mask(a, b)    (((1 << ((a) + 1)) - 1) & ~((1 << (b)) - 1))
-#define __set(v, a, b)  (((v) << (b)) & __mask(a, b))
-#define PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(x)      __set(x, 20, 16)
-#define PCIE20_PARF_PCS_DEEMPH         0x34
-#define PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN1(x)        __set(x, 21, 16)
-#define PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN2_3_5DB(x)  __set(x, 13, 8)
-#define PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN2_6DB(x)    __set(x, 5, 0)
-#define PCIE20_PARF_PCS_SWING          0x38
-#define PCIE20_PARF_PCS_SWING_TX_SWING_FULL(x)          __set(x, 14, 8)
-#define PCIE20_PARF_PCS_SWING_TX_SWING_LOW(x)           __set(x, 6, 0)
-#define PCIE20_PARF_PHY_REFCLK         0x4C
-#define PCIE_SFAB_AXI_S5_FCLK_CTL       (MSM_CLK_CTL_BASE + 0x2154)
-#define PCIE20_AXI_MSTR_RESP_COMP_CTRL0 0x818
-#define PCIE20_AXI_MSTR_RESP_COMP_CTRL1 0x81c
-#endif /* CONFIG_IPQ806X_PCI*/
+#define pcie_board_cfg_dk07(_id)                                             \
+{                                                                       \
+	.pci_gpio		= pci_##_id##_dk07_gpio_data,                \
+	.pci_gpio_count		= ARRAY_SIZE(pci_##_id##_dk07_gpio_data),    \
+	.parf			= PCIE20_##_id##_PARF_PHYS,             \
+	.elbi			= PCIE20_##_id##_ELBI_PHYS,             \
+	.pcie20			= PCIE20_##_id##_PHYS,                  \
+	.axi_bar_start		= PCIE20_##_id##_AXI_BAR_PHYS,          \
+	.axi_bar_size		= PCIE20_##_id##_AXI_BAR_SIZE,          \
+	.axi_conf		= PCIE20_##_id##_AXI_CONF,              \
+	.pcie_rst		= PCIE20_##_id##_RESET,                 \
+}
 
-#ifdef CONFIG_IPQ_MMC
-gpio_func_data_t emmc1_gpio[] = {
-	{
-		.gpio = 38,
-		.func = 2,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_10MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 39,
-		.func = 2,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_10MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 40,
-		.func = 2,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_10MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 41,
-		.func = 2,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_10MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 42,
-		.func = 2,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_16MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 43,
-		.func = 2,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_10MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 44,
-		.func = 2,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_10MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 45,
-		.func = 2,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_10MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 46,
-		.func = 2,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_10MA,
-		.oe = GPIO_OE_DISABLE
-	},
-	{
-		.gpio = 47,
-		.func = 2,
-		.pull = GPIO_PULL_UP,
-		.drvstr = GPIO_10MA,
-		.oe = GPIO_OE_DISABLE
-	},
-};
+#define PCIE20_PARF_PHY_CTRL				0x40
+#define __mask(a, b)	(((1 << ((a) + 1)) - 1) & ~((1 << (b)) - 1))
+#define __set(v, a, b)	(((v) << (b)) & __mask(a, b))
+#define PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(x)	_set(x, 20, 16)
+#define PCIE20_PARF_PCS_DEEMPH				0x34
+#define PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN1(x)	__set(x, 21, 16)
+#define PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN2_3_5DB(x)	__set(x, 13, 8)
+#define PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN2_6DB(x)	__set(x, 5, 0)
+#define PCIE20_PARF_PCS_SWING				0x38
+#define PCIE20_PARF_PCS_SWING_TX_SWING_FULL(x)		__set(x, 14, 8)
+#define PCIE20_PARF_PCS_SWING_TX_SWING_LOW(x)		__set(x, 6, 0)
+#define PCIE20_PARF_PHY_REFCLK 				0x4C
+#define PCIE_SFAB_AXI_S5_FCLK_CTL			(MSM_CLK_CTL_BASE + 0x2154)
+#define PCIE20_AXI_MSTR_RESP_COMP_CTRL0			0x818
+#define PCIE20_AXI_MSTR_RESP_COMP_CTRL1			0x81c
+
 #endif
 
-gpio_func_data_t gsbi1_gpio[] = {
-	{
-		.gpio = 51,
-		.func = 1,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_12MA,
-		.oe = GPIO_OE_ENABLE
-	},
-	{
-		.gpio = 52,
-		.func = 1,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_12MA,
-		.oe = GPIO_OE_ENABLE
-	},
-};
-
-gpio_func_data_t gsbi2_gpio[] = {
-	{
-		.gpio = 22,
-		.func = 1,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_12MA,
-		.oe = GPIO_OE_ENABLE
-	},
-	{
-		.gpio = 23,
-		.func = 1,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_12MA,
-		.oe = GPIO_OE_ENABLE
-	},
-};
-
-gpio_func_data_t gsbi4_gpio[] = {
-	{
-		.gpio = 10,
-		.func = 1,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_12MA,
-		.oe = GPIO_OE_ENABLE
-	},
-	{
-		.gpio = 11,
-		.func = 1,
-		.pull = GPIO_NO_PULL,
-		.drvstr = GPIO_12MA,
-		.oe = GPIO_OE_ENABLE
-	},
-};
-
-uart_cfg_t gsbi1_console_uart = {
-	.base 	   	= GSBI_1,
-	.gsbi_base	= UART_GSBI1_BASE,
-	.uart_dm_base   = UART1_DM_BASE,
-	.uart_mnd_value	= { .m_value = 48, .n_value = 125, .d_value = 63 },
-	.dbg_uart_gpio  = gsbi1_gpio,
-};
-
-uart_cfg_t gsbi2_console_uart = {
-	.base 	   	= GSBI_2,
-	.gsbi_base	= UART_GSBI2_BASE,
-	.uart_dm_base   = UART2_DM_BASE,
-	.uart_mnd_value	= { .m_value = 12, .n_value = 625, .d_value = 313 },
-	.dbg_uart_gpio  = gsbi2_gpio,
-};
-
-uart_cfg_t gsbi4_console_uart = {
-	.base 	   	= GSBI_4,
-	.gsbi_base	= UART_GSBI4_BASE,
-	.uart_dm_base   = UART4_DM_BASE,
-	.uart_mnd_value	= { .m_value = 12, .n_value = 625, .d_value = 313 },
-	.dbg_uart_gpio  = gsbi4_gpio,
-};
-
-#define gmac_board_cfg(_b, _sec, _p, _p0, _p1, _mp, _pn, ...)		\
-{									\
-	.base			= NSS_GMAC##_b##_BASE,			\
-	.unit			= _b,					\
-	.is_macsec		= _sec,					\
-	.phy			= PHY_INTERFACE_MODE_##_p,		\
-	.phy_addr		= { .count = _pn, { __VA_ARGS__ } },	\
-	.mac_pwr0		= _p0,					\
-	.mac_pwr1		= _p1,					\
-	.mac_conn_to_phy	= _mp,					\
-	.phy_name		= "IPQ MDIO"#_b		 		\
-}
-
-#define uart_board_cfg(_b, _m, _n, _d)							\
-{											\
-	.base			= _b,							\
-	.gsbi_base		= UART_GSBI##_b##_BASE,					\
-	.uart_dm_base		= UART##_b##_DM_BASE,					\
-	.uart_mnd_value		= { .m_value = _m, .n_value = _n, .d_value = _d },	\
-	.dbg_uart_gpio		= gsbi##_b##_gpio,					\
-}
-
-#define gmac_board_cfg_invalid()	{ .unit = -1, }
-
+#define ipq40xx_edma_cfg_invalid()	{ .unit = -1, }
 /* Board specific parameter Array */
-board_ipq806x_params_t board_params[] = {
-	/*
-	 * Replicate DB149 details for RUMI until, the board no.s are
-	 * properly sorted out
-	 */
+board_ipq40xx_params_t board_params[] = {
 	{
-		.machid = MACH_TYPE_IPQ806X_RUMI3,
-		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 5, 32, 1 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.flashdesc = NAND_NOR,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
+		.machid = MACH_TYPE_IPQ40XX_AP_DK01_1_S1,
+		.ddr_size = (128 << 20),
+		.mtdids = "nand2=spi0.0",
+		.console_uart_cfg = &uart1_console_uart_dk01,
+		.sw_gpio = ap_dk01_1_c2_sw_gpio_qfn,
+		.sw_gpio_count = ARRAY_SIZE(ap_dk01_1_c2_sw_gpio_qfn),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+					0, 1, 2, 3, 4)
 		},
-		.console_uart_cfg = &gsbi1_console_uart,
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-		},
-#endif
-		.clk_dummy = 1,
+		.spi_nand_available = 0,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+		.dtb_config_name = { "config@4", "config@ap.dk01.1-c1" },
 	},
 	{
-		.machid = MACH_TYPE_IPQ806X_DB149,
+		.machid = MACH_TYPE_IPQ40XX_AP_DK01_1_C1,
 		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac0_gpio),
-		.gmac_gpio = gmac0_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(0, 0, RGMII, 0, 0, 0,
-					1, 4),
-			gmac_board_cfg(1, 1, SGMII, 0, 0, 0,
-					4, 0, 1, 2, 3),
-			gmac_board_cfg(2, 1, SGMII, 0, 0, 1,
-					1, 6),
-			gmac_board_cfg(3, 1, SGMII, 0, 0, 1,
-					1, 7),
+		.mtdids = "nand2=spi0.0",
+		.console_uart_cfg = &uart1_console_uart_dk01,
+		.sw_gpio = sw_gpio_qfn,
+		.sw_gpio_count = ARRAY_SIZE(sw_gpio_qfn),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+					0, 1, 2, 3, 4)
 		},
-		.console_uart_cfg = &gsbi2_console_uart,
-		.flashdesc = NAND_NOR,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
+		.spi_nand_available = 0,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+		.dtb_config_name = { "config@4", "config@ap.dk01.1-c1" },
+	},
+	{
+		.machid = MACH_TYPE_IPQ40XX_AP_DK01_1_C2,
+		.ddr_size = (256 << 20),
+		.mtdids = "nand1=nand1,nand2=spi0.0",
+		.console_uart_cfg = &uart1_console_uart_dk01,
+		.sw_gpio = ap_dk01_1_c2_sw_gpio_qfn,
+		.sw_gpio_count = ARRAY_SIZE(ap_dk01_1_c2_sw_gpio_qfn),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+					0, 1, 2, 3, 4)
 		},
-
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
+		.spi_nand_available = 1,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+		.dtb_config_name = { "config@5", "config@ap.dk01.1-c2" },
+	},
+	{
+		.machid = MACH_TYPE_IPQ40XX_AP_DK04_1_C1,
+		.ddr_size = (256 << 20),
+		.mtdids = "nand0=nand0,nand2=spi0.0",
+		.spi_nor_gpio = spi_nor_bga,
+		.spi_nor_gpio_count = ARRAY_SIZE(spi_nor_bga),
+		.nand_gpio = nand_gpio_bga,
+		.nand_gpio_count = ARRAY_SIZE(nand_gpio_bga),
+		.sw_gpio = sw_gpio_bga,
+		.sw_gpio_count = ARRAY_SIZE(sw_gpio_bga),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+					0, 1, 2, 3, 4)
 		},
+		.uart_cfg = &uart2,
+		.console_uart_cfg = &uart1_console_uart_dk04,
+#ifdef CONFIG_IPQ40XX_I2C
+		.i2c_cfg = &i2c0,
 #endif
-#ifdef CONFIG_IPQ806X_PCI
+		.emmc_gpio = mmc_ap_dk04,
+		.emmc_gpio_count = ARRAY_SIZE(mmc_ap_dk04),
+		.spi_nand_available = 0,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+#ifdef CONFIG_IPQ40XX_PCI
 		.pcie_cfg = {
 			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-#endif /* CONFIG_IPQ806X_PCI */
-		.dtb_config_name ={ "db149", "v2.0-db149", "v3.0-db149"},
-	},
-	{
-		.machid = MACH_TYPE_IPQ806X_DB149_1XX,
-		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac0_gpio),
-		.gmac_gpio = gmac0_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(0, 0, RGMII, 0, 0, 0,
-					1, 4),
-			gmac_board_cfg(1, 1, SGMII, 0, 0, 0,
-					4, 0, 1, 2, 3),
-			gmac_board_cfg(2, 1, SGMII, 0, 0, 1,
-					1, 6),
-			gmac_board_cfg(3, 1, SGMII, 0, 0, 1,
-					1, 7),
-		},
-		.flashdesc = NOR_MMC,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-		.console_uart_cfg = &gsbi2_console_uart,
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
 		},
 #endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-#endif /* CONFIG_IPQ806X_PCI */
+		.dtb_config_name = { "config@1", "config@ap.dk04.1-c1" },
 	},
 	{
-		.machid = MACH_TYPE_IPQ806X_DB149_2XX,
+		.machid = MACH_TYPE_IPQ40XX_AP_DK04_1_C4,
 		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac0_gpio),
-		.gmac_gpio = gmac0_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(0, 0, RGMII, 0, 0, 0,
-					1, 4),
-			gmac_board_cfg(1, 1, SGMII, 0, 0, 0,
-					4, 0, 1, 2, 3),
-			gmac_board_cfg(2, 1, SGMII, 0, 0, 1,
-					1, 6),
-			gmac_board_cfg(3, 1, SGMII, 0, 0, 1,
-					1, 7),
+		.mtdids = "nand0=nand0,nand2=spi0.0",
+		.spi_nor_gpio = spi_nor_bga,
+		.spi_nor_gpio_count = ARRAY_SIZE(spi_nor_bga),
+		.nand_gpio = nand_gpio_bga,
+		.nand_gpio_count = ARRAY_SIZE(nand_gpio_bga),
+		.sw_gpio = sw_gpio_bga,
+		.sw_gpio_count = ARRAY_SIZE(sw_gpio_bga),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+					0, 1, 2, 3, 4)
 		},
-		.flashdesc = NAND_NOR,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-		.console_uart_cfg = &gsbi2_console_uart,
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
+		.uart_cfg = &uart2,
+		.console_uart_cfg = &uart1_console_uart_dk04,
+#ifdef CONFIG_IPQ40XX_I2C
+		.i2c_cfg = &i2c0,
+#endif
+		.emmc_gpio = mmc_ap_dk04,
+		.emmc_gpio_count = ARRAY_SIZE(mmc_ap_dk04),
+		.spi_nand_available = 0,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+#ifdef CONFIG_IPQ40XX_PCI
+		.pcie_cfg = {
+			pcie_board_cfg(0),
 		},
 #endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-#endif /* CONFIG_IPQ806X_PCI */
+		.dtb_config_name = { "config@8", "config@ap.dk04.1-c4" },
 	},
 	{
-		.machid = MACH_TYPE_IPQ806X_TB726,
+		.machid = MACH_TYPE_IPQ40XX_AP_DK04_1_C2,
 		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac1_gpio),
-		.gmac_gpio = gmac1_gpio,
-
-		/* This GMAC config table is not valid as of now.
-		 * To accomodate this config, TB726 board needs
-		 * hardware rework.Moreover this setting is not
-		 * been validated in TB726 board */
-		.gmac_cfg = {
-			gmac_board_cfg(0, 0, RGMII, 0, 0, 0,
-					1, 4),
-			gmac_board_cfg(1, 1, SGMII, 0, 0, 0,
-					4, 0, 1, 2, 3),
-			gmac_board_cfg(2, 1, SGMII, 0, 0, 1,
-					1, 6),
-			gmac_board_cfg(3, 1, SGMII, 0, 0, 1,
-					1, 7),
+		.mtdids = "nand2=spi0.0",
+		.uart_cfg = &uart2,
+		.console_uart_cfg = &uart1_console_uart_dk04,
+#ifdef CONFIG_IPQ40XX_I2C
+		.i2c_cfg = &i2c0,
+#endif
+		.spi_nor_gpio = spi_nor_bga,
+		.spi_nor_gpio_count = ARRAY_SIZE(spi_nor_bga),
+		.sw_gpio = ap_dk04_1_c2_sw_gpio_bga,
+		.sw_gpio_count = ARRAY_SIZE(ap_dk04_1_c2_sw_gpio_bga),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+					0, 1, 2, 3, 4)
 		},
-		.flashdesc = NAND_NOR,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
+		.emmc_gpio = mmc_ap_dk04,
+		.emmc_gpio_count = ARRAY_SIZE(mmc_ap_dk04),
+		.spi_nand_available = 0,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+		.dtb_config_name = { "config@2", "config@ap.dk04.1-c2" },
+	},
+	{
+		.machid = MACH_TYPE_IPQ40XX_AP_DK04_1_C3,
+		.ddr_size = (256 << 20),
+		.console_uart_cfg = &uart1_console_uart_dk04,
+		.mtdids = "nand0=nand0,nand2=spi0.0",
+		.spi_nor_gpio = spi_nor_bga,
+		.spi_nor_gpio_count = ARRAY_SIZE(spi_nor_bga),
+		.nand_gpio = nand_gpio_bga,
+		.nand_gpio_count = ARRAY_SIZE(nand_gpio_bga),
+		.sw_gpio = sw_gpio_bga,
+		.sw_gpio_count = ARRAY_SIZE(sw_gpio_bga),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+					0, 1, 2, 3, 4)
 		},
-		.console_uart_cfg = &gsbi2_console_uart,
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
+		.emmc_gpio = mmc_ap_dk04,
+		.emmc_gpio_count = ARRAY_SIZE(mmc_ap_dk04),
+		.spi_nand_available = 0,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 1,
+		.dtb_config_name = { "config@3", "config@ap.dk04.1-c3" },
+	},
+	{
+		.machid = MACH_TYPE_IPQ40XX_AP_DK04_1_C5,
+		.ddr_size = (256 << 20),
+		.mtdids = "nand1=nand1,nand2=spi0.0",
+		.spi_nor_gpio = spi_nor_bga,
+		.spi_nor_gpio_count = ARRAY_SIZE(spi_nor_bga),
+		.sw_gpio = sw_gpio_bga,
+		.sw_gpio_count = ARRAY_SIZE(sw_gpio_bga),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+					0, 1, 2, 3, 4)
+		},
+		.uart_cfg = &uart2,
+		.console_uart_cfg = &uart1_console_uart_dk04,
+#ifdef CONFIG_IPQ40XX_I2C
+		.i2c_cfg = &i2c0,
+#endif
+		.spi_nand_available = 1,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+#ifdef CONFIG_IPQ40XX_PCI
+		.pcie_cfg = {
+			pcie_board_cfg(0),
 		},
 #endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-#endif /* CONFIG_IPQ806X_PCI */
+		.dtb_config_name = { "config@12", "config@ap.dk04.1-c5" },
 	},
 	{
-		.machid = MACH_TYPE_IPQ806X_DB147,
+		.machid = MACH_TYPE_IPQ40XX_AP_DK05_1_C1,
+		.ddr_size = (256 << 20),
+		.mtdids = "nand1=nand1,nand2=spi0.0",
+		.console_uart_cfg = &uart1_console_uart_dk01,
+		.sw_gpio = ap_dk01_1_c2_sw_gpio_qfn,
+		.sw_gpio_count = ARRAY_SIZE(ap_dk01_1_c2_sw_gpio_qfn),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+					0, 1, 2, 3, 4)
+		},
+		.spi_nand_available = 1,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+		.dtb_config_name = { "config@11", "config@ap.dk05.1-c1" },
+	},
+	{
+		.machid = MACH_TYPE_IPQ40XX_AP_DK06_1_C1,
+		.ddr_size = (256 << 20),
+		.console_uart_cfg = &uart1_console_uart_dk04,
+		.mtdids = "nand0=nand0,nand2=spi0.0",
+		.spi_nor_gpio = spi_nor_bga,
+		.spi_nor_gpio_count = ARRAY_SIZE(spi_nor_bga),
+		.nand_gpio = nand_gpio_bga,
+		.nand_gpio_count = ARRAY_SIZE(nand_gpio_bga),
+		.sw_gpio = ap_dk06_1_c1_sw_gpio_bga,
+		.sw_gpio_count = ARRAY_SIZE(ap_dk06_1_c1_sw_gpio_bga),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+			0, 1, 2, 3, 4)
+			},
+		.emmc_gpio = mmc_ap_dk04,
+		.emmc_gpio_count = ARRAY_SIZE(mmc_ap_dk04),
+		.spi_nand_available = 0,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+		.dtb_config_name = { "config@9", "config@ap.dk06.1-c1" },
+	},
+	{
+		.machid = MACH_TYPE_IPQ40XX_AP_DK07_1_C1,
 		.ddr_size = (512 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac1_gpio),
-		.gmac_gpio = gmac1_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(1, 1, RGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 1, 4),
-			gmac_board_cfg(2, 1, SGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 4, 0, 1, 2, 3),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
-		},
-		.flashdesc = NAND_NOR,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-		.console_uart_cfg = &gsbi2_console_uart,
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
+		.console_uart_cfg = &uart1_console_uart_dk04,
+		.mtdids = "nand0=nand0,nand2=spi0.0",
+		.spi_nor_gpio = spi_nor_bga,
+		.spi_nor_gpio_count = ARRAY_SIZE(spi_nor_bga),
+		.nand_gpio = nand_gpio_bga,
+		.nand_gpio_count = ARRAY_SIZE(nand_gpio_bga),
+		.sw_gpio = ap_dk07_1_c1_sw_gpio_bga,
+		.sw_gpio_count = ARRAY_SIZE(ap_dk07_1_c1_sw_gpio_bga),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+			0, 1, 2, 3, 4)
 			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
+#ifdef CONFIG_IPQ40XX_I2C
+		.i2c_cfg = &i2c0,
+#endif
+		.emmc_gpio = mmc_ap_dk07,
+		.emmc_gpio_count = ARRAY_SIZE(mmc_ap_dk07),
+		.spi_nand_available = 0,
+		.nor_nand_available = 1,
+		.nor_emmc_available = 0,
+#ifdef CONFIG_IPQ40XX_PCI
+		.pcie_cfg = {
+			pcie_board_cfg_dk07(0),
 		},
 #endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-#endif /* CONFIG_IPQ806X_PCI */
+		.dtb_config_name = { "config@10", "config@ap.dk07.1-c1" },
 	},
 	{
-		.machid = MACH_TYPE_IPQ806X_AP148,
+		.machid = MACH_TYPE_IPQ40XX_AP_DK07_1_C2,
+		.ddr_size = (512 << 20),
+		.console_uart_cfg = &uart1_console_uart_dk04,
+		.mtdids = "nand0=nand0,nand2=spi0.0",
+		.spi_nor_gpio = spi_nor_bga,
+		.spi_nor_gpio_count = ARRAY_SIZE(spi_nor_bga),
+		.nand_gpio = nand_gpio_bga,
+		.nand_gpio_count = ARRAY_SIZE(nand_gpio_bga),
+		.sw_gpio = ap_dk07_1_c1_sw_gpio_bga,
+		.sw_gpio_count = ARRAY_SIZE(ap_dk07_1_c1_sw_gpio_bga),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+			0, 1, 2, 3, 4)
+			},
+#ifdef CONFIG_IPQ40XX_I2C
+		.i2c_cfg = &i2c0,
+#endif
+		.emmc_gpio = mmc_ap_dk07,
+		.emmc_gpio_count = ARRAY_SIZE(mmc_ap_dk07),
+		.spi_nand_available = 0,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+		.dtb_config_name = { "config@13", "config@ap.dk07.1-c2" },
+	},
+	{
+		.machid = MACH_TYPE_IPQ40XX_DB_DK01_1_C1,
 		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac1_gpio),
-		.gmac_gpio = gmac1_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(1, 1, RGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 1, 4),
-			gmac_board_cfg(2, 1, SGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 4, 0, 1, 2, 3),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
+		.mtdids = "nand2=spi0.0",
+		.console_uart_cfg = &uart1_console_uart_dk01,
+		.sw_gpio = sw_gpio_qfn,
+		.sw_gpio_count = ARRAY_SIZE(sw_gpio_qfn),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, RGMII,
+					0, 1, 2, 3, 4)
 		},
-		.console_uart_cfg = &gsbi4_console_uart,
-		.flashdesc = NAND_NOR,
-		.reset_switch_gpio = &reset_s17_gpio,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-		},
-#endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-#endif /* CONFIG_IPQ806X_PCI */
-		.dtb_config_name = { "ap148", "v2.0-ap148", "v3.0-ap148"},
+		.spi_nand_available = 0,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+		.dtb_config_name = { "config@6", "config@db.dk01.1-c1" },
 	},
 	{
-		.machid = MACH_TYPE_IPQ806X_AP148_1XX,
+		.machid = MACH_TYPE_IPQ40XX_DB_DK02_1_C1,
 		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac1_gpio),
-		.gmac_gpio = gmac1_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(1, 1, RGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 1, 4),
-			gmac_board_cfg(2, 1, SGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 4, 0, 1, 2, 3),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
+		.mtdids = "nand0=nand0,nand2=spi0.0",
+		.console_uart_cfg = &uart1_console_uart_dk04,
+		.spi_nor_gpio = spi_nor_bga,
+		.spi_nor_gpio_count = ARRAY_SIZE(spi_nor_bga),
+		.nand_gpio = nand_gpio_bga,
+		.nand_gpio_count = ARRAY_SIZE(nand_gpio_bga),
+		.sw_gpio = db_dk_2_1_sw_gpio_bga,
+		.sw_gpio_count = ARRAY_SIZE(db_dk_2_1_sw_gpio_bga),
+		.rgmii_gpio = rgmii_gpio_cfg,
+		.rgmii_gpio_count = ARRAY_SIZE(rgmii_gpio_cfg),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, RGMII,
+					0, 1, 2, 3, 4)
 		},
-		.console_uart_cfg = &gsbi4_console_uart,
-		.uart_cfg = {
-			uart_board_cfg(2, 12, 625, 313),
-		},
-		.flashdesc = NAND_NOR,
-		.reset_switch_gpio = &reset_s17_gpio,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-		},
-#endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-#endif /* CONFIG_IPQ806X_PCI */
-		.dtb_config_name = { "ap148_1xx", "v2.0-ap148_1xx", "v3.0-ap148_1xx"},
+		.emmc_gpio = mmc_ap_dk04,
+		.emmc_gpio_count = ARRAY_SIZE(mmc_ap_dk04),
+		.spi_nand_available = 0,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+		.dtb_config_name = { "config@7", "config@db.dk02.1-c1" },
 	},
 	{
-		.machid = MACH_TYPE_IPQ806X_AP145,
+		.machid = MACH_TYPE_IPQ40XX_TB832,
 		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac1_gpio),
-		.gmac_gpio = gmac1_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(1, 1, RGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 1, 4),
-			gmac_board_cfg(2, 1, SGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 4, 0, 1, 2, 3),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
+		.console_uart_cfg = &uart1_console_uart_dk04,
+		.sw_gpio = sw_gpio_bga,
+		.sw_gpio_count = ARRAY_SIZE(sw_gpio_bga),
+		.edma_cfg = {
+			ipq40xx_edma_cfg(0, 5, PSGMII,
+					0, 1, 2, 3, 4)
 		},
-		.flashdesc = NAND_NOR,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-		.console_uart_cfg = &gsbi4_console_uart,
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-		},
-#endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-#endif /* CONFIG_IPQ806X_PCI */
-		.dtb_config_name = { "ap145", "v2.0-ap145", "v3.0-ap145"},
+		.spi_nand_available = 0,
+		.nor_nand_available = 0,
+		.nor_emmc_available = 0,
+		.dtb_config_name = { "", "" },
 	},
-	{
-		.machid = MACH_TYPE_IPQ806X_AP145_1XX,
-		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac1_gpio),
-		.gmac_gpio = gmac1_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(1, 1, RGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 1, 4),
-			gmac_board_cfg(2, 1, SGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 4, 0, 1, 2, 3),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
-		},
-		.flashdesc = NOR_MMC,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-		.console_uart_cfg = &gsbi4_console_uart,
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-		},
-#endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-#endif /* CONFIG_IPQ806X_PCI */
-		.dtb_config_name = { "ap145_1xx", "v2.0-ap145_1xx", "v3.0-ap145_1xx"},
-	},
-	{
-		.machid = MACH_TYPE_IPQ806X_AP160,
-		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac1_gpio),
-		.gmac_gpio = gmac1_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(1, 1, RGMII, S17_RGMII0_1_8V,
-			S17_RGMII1_1_8V, 0, 1, 4),
-			gmac_board_cfg(2, 1, SGMII, S17_RGMII0_1_8V,
-			S17_RGMII1_1_8V, 0, 4, 0, 1, 2, 3),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
-		},
-		.flashdesc = NAND_NOR,
-		.flash_param = {
-			.mode = NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-		.console_uart_cfg = &gsbi4_console_uart,
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-		},
-#endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-		.wifi_pcie_power_gpio_cnt = 2,
-		.wifi_pcie_power_gpio = {
-			&wifi_pcie_1_power_gpio,
-			&wifi_pcie_2_power_gpio,
-		},
-#endif /* CONFIG_IPQ806X_PCI */
-		.dtb_config_name = { "ap160", "v2.0-ap160", "v3.0-ap160"},
-	},
-	{
-		.machid = MACH_TYPE_IPQ806X_AP160_2XX,
-		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac1_gpio),
-		.gmac_gpio = gmac1_gpio,
-		.ar8033_gpio = ar8033_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(0, 0, QSGMII, 0,
-			0, 0, 1, 4),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
-		},
-		.flashdesc = NAND_NOR,
-		.flash_param = {
-			.mode = NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-		.console_uart_cfg = &gsbi4_console_uart,
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-		},
-#endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-		.wifi_pcie_power_gpio_cnt = 2,
-		.wifi_pcie_power_gpio = {
-			&wifi_pcie_1_power_gpio,
-			&wifi_pcie_2_power_gpio,
-		},
-#endif /* CONFIG_IPQ806X_PCI */
-		.dtb_config_name = { "ap160_2xx", "v2.0-ap160_2xx", "v3.0-ap160_2xx"},
-	},
-	{
-		.machid = MACH_TYPE_IPQ806X_AK01_1XX,
-		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac3_gpio),
-		.gmac_gpio = gmac3_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(3, 1, SGMII, 0,
-			0, 1, 1, 5),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
-		},
-		.flashdesc = NAND_NOR,
-		.reset_ak01_gmac_gpio = &reset_ak01_8033_gpio,
-		.flash_param = {
-			.mode = NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-		.console_uart_cfg = &gsbi4_console_uart,
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-		},
-#endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-#endif /* CONFIG_IPQ806X_PCI */
-	},
-	{
-		.machid = MACH_TYPE_IPQ806X_AP161,
-		.ddr_size = (256 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac1_gpio),
-		.gmac_gpio = gmac1_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(1, 1, RGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 1, 4),
-			gmac_board_cfg(2, 1, SGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 4, 0, 1, 2, 3),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
-		},
-		.flashdesc = NAND_NOR,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-		.console_uart_cfg = &gsbi4_console_uart,
-#ifdef CONFIG_IPQ806X_I2C
-		.i2c_gsbi = GSBI_4,
-		.i2c_gsbi_base = I2C_GSBI4_BASE,
-		.i2c_mnd_value = { 1, 4, 2 },
-		.i2c_gpio = {
-			{
-				.gpio = 13,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-			{
-				.gpio = 12,
-				.func = 1,
-				.pull = GPIO_NO_PULL,
-				.drvstr = GPIO_12MA,
-				.oe = GPIO_OE_ENABLE
-			},
-		},
-#endif
-#ifdef CONFIG_IPQ806X_PCI
-		.pcie_cfg = {
-			pcie_board_cfg(0),
-			pcie_board_cfg(1),
-			pcie_board_cfg(2),
-		},
-#endif /* CONFIG_IPQ806X_PCI */
-		.dtb_config_name = { "ap161", "v2.0-ap161", "v3.0-ap161"},
-	},
-	{
-		.machid = MACH_TYPE_IPQ806X_STORM,
-		.ddr_size = (1024 << 20),
-		.usb_core_mnd_value = { 1, 5, 32 },
-		.usb_utmi_mnd_value = { 1, 40, 1 },
-		.gmac_gpio_count = ARRAY_SIZE(gmac0_gpio),
-		.gmac_gpio = gmac0_gpio,
-		.gmac_cfg = {
-			gmac_board_cfg(0, 1, RGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 1, 4),
-			gmac_board_cfg(2, 1, SGMII, S17_RGMII0_1_8V,
-					S17_RGMII1_1_8V, 0, 3, 0, 1, 2),
-			gmac_board_cfg_invalid(),
-			gmac_board_cfg_invalid(),
-		},
-		.switch_gpio = &storm_switch_gpio,
-		.flashdesc = ONLY_NOR,
-		.flash_param = {
-			.mode =	NOR_SPI_MODE_0,
-			.bus_number = GSBI_BUS_5,
-			.chip_select = SPI_CS_0,
-			.vendor = SPI_NOR_FLASH_VENDOR_SPANSION,
-		},
-		.console_uart_cfg = &gsbi4_console_uart,
-	},
-
 };
 
-#define NUM_IPQ806X_BOARDS	ARRAY_SIZE(board_params)
+#define NUM_IPQ40XX_BOARDS	ARRAY_SIZE(board_params)
 
-board_ipq806x_params_t *get_board_param(unsigned int machid)
+board_ipq40xx_params_t *get_board_param(unsigned int machid)
 {
 	unsigned int index = 0;
 
 	if (gboard_param)
 		return gboard_param;
 
-	for (index = 0; index < NUM_IPQ806X_BOARDS; index++) {
+	for (index = 0; index < NUM_IPQ40XX_BOARDS; index++) {
 		if (machid == board_params[index].machid) {
 			gboard_param = &board_params[index];
 			return &board_params[index];
