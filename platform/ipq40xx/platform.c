@@ -37,10 +37,9 @@
 #include <arch/arm/mmu.h>
 #include <board.h>
 #include <target/board.h>
+#include <qtimer.h>
 
-extern void platform_init_timer(void);
 extern void platform_panel_backlight_on(void);
-extern void platform_uninit_timer(void);
 extern void mipi_panel_reset(void);
 extern void mipi_dsi_panel_power_on(void);
 extern void mdp_clock_init(void);
@@ -48,8 +47,6 @@ extern void mmss_clock_init(void);
 extern struct fbcon_config *mipi_init(void);
 extern void mipi_dsi_shutdown(void);
 extern void msm_clocks_init(void);
-
-static uint32_t ticks_per_sec = 0;
 
 #define MB (1024*1024)
 
@@ -88,7 +85,7 @@ void platform_early_init(void)
 {
 	msm_clocks_init();
 	qgic_init();
-	platform_init_timer();
+	qtimer_init();
 	board_init();
 }
 
@@ -100,6 +97,7 @@ void platform_init(void)
 void platform_uninit(void)
 {
 	dprintf(INFO, "%s()\n", __func__);
+	qtimer_uninit();
 }
 
 /* Setup memory for this platform */
@@ -120,26 +118,6 @@ void platform_init_mmu_mappings(void)
 					    mmu_section_table[i].flags);
 		}
 	}
-}
-
-/* Initialize DGT timer */
-void platform_init_timer(void)
-{
-	/* disable timer */
-	writel(0, DGT_ENABLE);
-
-	/* DGT uses LPXO source which is 25MHz.
-	 * Set clock divider to 4.
-	 */
-	writel(3, DGT_CLK_CTL);
-
-	ticks_per_sec = 6250000;	/* (25 MHz / 4) */
-}
-
-/* Returns timer ticks per sec */
-uint32_t platform_tick_rate(void)
-{
-	return ticks_per_sec;
 }
 
 int keys_get_state(uint16_t code)

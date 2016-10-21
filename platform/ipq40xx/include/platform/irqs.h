@@ -39,7 +39,7 @@
 #define GIC_PPI_START 16
 #define GIC_SPI_START 32
 
-#define INT_DEBUG_TIMER_EXP     (GIC_PPI_START + 1)
+#define INT_QTMR_FRM_0_PHYSICAL_TIMER_EXP      (GIC_SPI_START + 8)
 
 #define USB1_HS_BAM_IRQ         (GIC_SPI_START + 94)
 #define USB1_HS_IRQ             (GIC_SPI_START + 100)
