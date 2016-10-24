@@ -116,14 +116,7 @@ void hsusb_clock_init(void)
 /* Configure UART clock - based on the gsbi id */
 void clock_config_uart_dm(uint8_t id)
 {
-	char gsbi_uart_clk_id[64];
-	char gsbi_p_clk_id[64];
-
-	snprintf(gsbi_uart_clk_id, 64,"gsbi%u_uart_clk", id);
-	clk_get_set_enable(gsbi_uart_clk_id, 7372800, 1);
-
-	snprintf(gsbi_p_clk_id, 64,"gsbi%u_pclk", id);
-	clk_get_set_enable(gsbi_p_clk_id, 0, 1);
+	/* The clock has configured in SBL */
 }
 
 /* Configure i2c clock */
