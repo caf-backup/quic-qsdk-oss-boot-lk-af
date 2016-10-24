@@ -83,23 +83,6 @@ void shutdown_device(void)
 	dprintf(CRITICAL, "Shutdown failed.\n");
 }
 
-void ipq_nss_init(void)
-{
-	writel(0, GMAC_CORE_RESET(0));
-	writel(0, GMACSEC_CORE_RESET(0));
-
-	writel(0, GMAC_CORE_RESET(1));
-	writel(0, GMACSEC_CORE_RESET(1));
-
-	writel(0, GMAC_CORE_RESET(2));
-	writel(0, GMACSEC_CORE_RESET(2));
-
-	writel(0, GMAC_CORE_RESET(3));
-	writel(0, GMACSEC_CORE_RESET(3));
-
-	writel(0, GMAC_AHB_RESET);
-}
-
 void target_init(void)
 {
 	unsigned char slot;
@@ -108,8 +91,6 @@ void target_init(void)
 	dprintf(INFO, "target_init()\n");
 	dprintf(INFO, "board platform id is 0x%x\n",  platform_id);
 	dprintf(INFO, "board platform verson is 0x%x\n",  board_platform_ver());
-
-	ipq_nss_init();
 
 	/* Need to initialize before splash screen init if splash is being read from emmc*/
 	/* Trying Slot 1 first */
@@ -197,15 +178,7 @@ void target_uart_init(void)
 /* Detect the target type */
 void target_detect(struct board_data *board)
 {
-	struct smem_machid_info machid;
-	unsigned ret;
-
-	ret = smem_read_alloc_entry_offset(SMEM_MACHID_INFO_LOCATION,
-						   &machid, sizeof(machid), 0);
-	if (ret)
-		return;
-
-	board->target = machid.machid;
+	/* machid is already determined */
 }
 
 /* Detect the modem type */

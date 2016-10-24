@@ -108,8 +108,3 @@ void gpio_config_uart_dm(uint8_t ignore)
 
 	ipq_configure_gpio(uart->dbg_uart_gpio, NO_OF_DBG_UART_GPIOS);
 }
-
-void gpio_config_i2c(uint8_t id)
-{
-	ipq_configure_gpio(gboard_param->i2c_cfg->i2c_gpio, NO_OF_I2C_GPIOS);
-}
