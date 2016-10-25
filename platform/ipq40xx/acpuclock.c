@@ -132,34 +132,40 @@ void clock_config_i2c(uint8_t id, uint32_t freq)
 	clk_get_set_enable(gsbi_p_clk_id, 0, 1);
 }
 
-/* Intialize MMC clock */
-void clock_init_mmc(uint32_t id)
-{
-	char sdc_clk_id[64];
-
-	snprintf(sdc_clk_id, sizeof(sdc_clk_id),"sdc%u_clk", id);
-	clk_get_set_enable(sdc_clk_id, 400000, 1);
-}
-
 /* Configure MMC clock */
 void clock_config_mmc(uint32_t interface, uint32_t freq)
 {
-	char sdc_clk[64];
-	unsigned rate;
-
-	snprintf(sdc_clk, 64, "sdc%u_clk", interface);
-
 	/* Disalbe MCI_CLK before changing the sdcc clock */
 	mmc_boot_mci_clk_disable();
+
+	/* Select SDCC clock source as DDR_PLL_SDCC1_CLK  192MHz */
+	writel(0x100, GCC_SDCC1_APPS_RCGR);
+	/* Update APPS_CMD_RCGR to reflect source selection */
+	writel(0x1, GCC_SDCC1_APPS_CMD_RCGR);
+	udelay(10);
 
 	switch(freq)
 	{
 	case MMC_CLK_400KHZ:
-		rate = 400000;
+		/* Set root clock generator to bypass mode */
+		writel(0x0, GCC_SDCC1_APPS_CBCR);
+		udelay(10);
+		/* Choose divider for 400KHz */
+		writel(0x1e4 , GCC_SDCC1_MISC);
+		/* Enable root clock generator */
+		writel(0x1, GCC_SDCC1_APPS_CBCR);
+		udelay(10);
 		break;
 	case MMC_CLK_48MHZ:
 	case MMC_CLK_50MHZ: /* Max supported is 48MHZ */
-		rate = 48000000;
+		/* Set root clock generator to bypass mode */
+		writel(0x0, GCC_SDCC1_APPS_CBCR);
+		udelay(10);
+		/* Choose divider for 48MHz */
+		writel(0x3, GCC_SDCC1_MISC);
+		/* Enable root clock generator */
+		writel(0x1, GCC_SDCC1_APPS_CBCR);
+		udelay(10);
 		break;
 	default:
 		ASSERT(0);
@@ -167,10 +173,14 @@ void clock_config_mmc(uint32_t interface, uint32_t freq)
 
 	};
 
-	clk_get_set_enable(sdc_clk, rate, 1);
-
 	/* Enable MCI clk */
 	mmc_boot_mci_clk_enable();
+}
+
+/* Intialize MMC clock */
+void clock_init_mmc(uint32_t id)
+{
+	clock_config_mmc(id, MMC_CLK_400KHZ);
 }
 
 /* Configure crypto engine clock */
