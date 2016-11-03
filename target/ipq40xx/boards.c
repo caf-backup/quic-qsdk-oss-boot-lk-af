@@ -1444,7 +1444,7 @@ valid_mac_addr(const unsigned char *mac)
 	return 1;		/* Valid */
 }
 
-#define IPQ_GMAC_COUNT		4
+#define IPQ_GMAC_COUNT		2
 
 #define MAC_ADDR_FMT		"%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_ADDR_ARG(x)		(x)[0], (x)[1], (x)[2], (x)[3], (x)[4], (x)[5]
