@@ -42,6 +42,19 @@ static struct board_data board = {UNKNOWN,
 	PMIC_IS_INVALID,
 	0};
 
+
+/*
+ * The HW platform revision is specified in 8 bytes : 0xMMMMmmmm
+ *  Where MMMM is major and mmmm is minor.
+ * 0x00010000  indicates its 1.0.
+ *
+ * Modify here to read the platform revision accordingly.
+ */
+static unsigned get_hw_platform()
+{
+	return 0x00010000;
+}
+
 static void platform_detect()
 {
 	struct smem_board_info_v6 board_info_v6;
@@ -67,7 +80,6 @@ static void platform_detect()
 
 		board.platform = board_info_v6.board_info_v3.msm_id;
 		board.msm_version = board_info_v6.board_info_v3.msm_version;
-		board.platform_hw = board_info_v6.board_info_v3.hw_platform;
 		board.platform_subtype = board_info_v6.platform_subtype;
 		board.platform_version = board_info_v6.platform_version;
 	}
@@ -83,7 +95,6 @@ static void platform_detect()
 
 		board.platform = board_info_v7.board_info_v3.msm_id;
 		board.msm_version = board_info_v7.board_info_v3.msm_version;
-		board.platform_hw = board_info_v7.board_info_v3.hw_platform;
 		board.platform_subtype = board_info_v7.platform_subtype;
 		board.platform_version = board_info_v7.platform_version;
 		board.pmic_type = board_info_v7.pmic_type;
@@ -94,6 +105,9 @@ static void platform_detect()
 		dprintf(CRITICAL, "Unsupported board info format\n");
 		ASSERT(0);
 	}
+
+	if (get_hw_platform())
+		 board.platform_hw = get_hw_platform();
 }
 
 void board_init()
