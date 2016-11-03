@@ -396,6 +396,9 @@ struct smem {
 	struct smem_alloc_info alloc_info[SMEM_MAX_SIZE];
 };
 
+#define _SMEM_RAM_PTABLE_MAGIC_1 0x9DA5E0A8
+#define _SMEM_RAM_PTABLE_MAGIC_2 0xAF9EC4E2
+
 struct smem_ram_ptn {
 	char name[16];
 	unsigned start;
@@ -417,9 +420,29 @@ struct smem_ram_ptn {
 	unsigned reserved2, reserved3, reserved4, reserved5;
 } __attribute__ ((__packed__));
 
+struct smem_ram_ptn_v1 {
+	char name[16];
+	unsigned long long start;
+	unsigned long long size;
+
+	/* RAM Partition attribute: READ_ONLY, READWRITE etc.  */
+	unsigned attr;
+
+	/* RAM Partition category: EBI0, EBI1, IRAM, IMEM */
+	unsigned category;
+
+	/* RAM Partition domain: APPS, MODEM, APPS & MODEM (SHARED) etc. */
+	unsigned domain;
+
+	/* RAM Partition type: system, bootloader, appsboot, apps etc. */
+	unsigned type;
+
+	/* reserved for future expansion without changing version number */
+	unsigned reserved2, reserved3, reserved4, reserved5;
+} __attribute__ ((__packed__));
+
+
 struct smem_ram_ptable {
-#define _SMEM_RAM_PTABLE_MAGIC_1 0x9DA5E0A8
-#define _SMEM_RAM_PTABLE_MAGIC_2 0xAF9EC4E2
 	unsigned magic[2];
 	unsigned version;
 	unsigned reserved1;
@@ -427,6 +450,16 @@ struct smem_ram_ptable {
 	struct smem_ram_ptn parts[32];
 	unsigned buf;
 } __attribute__ ((__packed__));
+
+struct smem_ram_ptable_v1 {
+	unsigned magic[2];
+	unsigned version;
+	unsigned reserved1;
+	unsigned len;
+	unsigned buf;
+	struct smem_ram_ptn_v1 parts[32];
+} __attribute__ ((__packed__));
+
 
 /* Power on reason/status info */
 #define PWR_ON_EVENT_RTC_ALARM 0x2
