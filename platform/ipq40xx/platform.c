@@ -98,6 +98,8 @@ void platform_uninit(void)
 {
 	dprintf(INFO, "%s()\n", __func__);
 	qtimer_uninit();
+	clock_disable_mmc();
+
 }
 
 /* Setup memory for this platform */
