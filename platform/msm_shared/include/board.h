@@ -54,6 +54,7 @@ uint32_t board_platform_id();
 uint32_t board_target_id();
 uint32_t board_baseband();
 uint32_t board_hardware_id();
+uint32_t board_subtype_id();
 uint32_t board_pmic_type();
 uint32_t board_pmic_ver();
 uint32_t board_platform_ver();

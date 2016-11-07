@@ -44,15 +44,26 @@ static struct board_data board = {UNKNOWN,
 
 
 /*
- * The HW platform revision is specified in 8 bytes : 0xMMMMmmmm
- *  Where MMMM is major and mmmm is minor.
- * 0x00010000  indicates its 1.0.
- *
- * Modify here to read the platform revision accordingly.
+ * The HW platform revision is specified as qcom,board_id in the dts file
+ *  which is <variant_id, subtype_id>
+ * This function returns the variant_id. Currently the variant_id is defined
+ * as HW_PLATFORM_MTP.
  */
-static unsigned get_hw_platform()
+static unsigned get_hw_platform_variant()
 {
-	return 0x00010000;
+	return HW_PLATFORM_MTP;
+}
+
+/*
+ * The platform subtype is specified as qcom,board_id in the dts file
+ *  which is <variant_id, subtype_id>
+ * This function returns the subtype_id. Currently the subtype_id is defined
+ * as 0.
+ * Modify here to read the subtype id accordingly.
+ */
+static unsigned get_hw_platform_subtype()
+{
+	return 0;
 }
 
 static void platform_detect()
@@ -106,8 +117,8 @@ static void platform_detect()
 		ASSERT(0);
 	}
 
-	if (get_hw_platform())
-		 board.platform_hw = get_hw_platform();
+	if (get_hw_platform_variant())
+		 board.platform_hw = get_hw_platform_variant();
 }
 
 void board_init()
@@ -136,7 +147,10 @@ uint32_t board_hardware_id()
 {
 	return board.platform_hw;
 }
-
+uint32_t board_subtype_id()
+{
+	return get_hw_platform_subtype();
+}
 uint32_t board_pmic_type()
 {
 	return board.pmic_type;

@@ -2306,6 +2306,7 @@ void * get_device_tree_ptr(struct dt_table *table)
 	{
 		if((dt_platform_id(table, dt_entry_ptr) == board_platform_id()) &&
 		   (dt_variant_id(table, dt_entry_ptr) == board_hardware_id()) &&
+		   (dt_subtype_id(table, dt_entry_ptr) == board_subtype_id()) &&
 		   (dt_soc_rev(table, dt_entry_ptr) == 0)){
 				return dt_entry_ptr;
 		}
