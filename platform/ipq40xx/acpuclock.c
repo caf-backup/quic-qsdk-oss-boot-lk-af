@@ -183,6 +183,11 @@ void clock_init_mmc(uint32_t id)
 	clock_config_mmc(id, MMC_CLK_400KHZ);
 }
 
+void clock_disable_mmc()
+{
+	writel(0, GCC_SDCC1_MISC);
+}
+
 /* Configure crypto engine clock */
 void ce_clock_init(void)
 {
