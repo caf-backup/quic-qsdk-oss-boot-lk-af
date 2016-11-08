@@ -2678,9 +2678,11 @@ mmc_boot_data_transfer(unsigned int *data_ptr,
 		mmc_ret = MMC_BOOT_E_FAILURE;
 	}
 #else
+#if MMC_BOOT_BAM
 
 	if (dma_enabled)
 		return mmc_bam_transfer_data(data_ptr, data_len, direction);
+#endif
 
 	if (direction == MMC_BOOT_DATA_READ) {
 		mmc_ret = mmc_boot_fifo_read(data_ptr, data_len);
