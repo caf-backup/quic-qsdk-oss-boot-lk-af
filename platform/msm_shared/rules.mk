@@ -163,3 +163,11 @@ ifeq ($(PLATFORM),mdm9x25)
 			$(LOCAL_DIR)/qtimer_mmap.o \
 			$(LOCAL_DIR)/board.o
 endif
+
+ifeq ($(ENABLE_USB30_SUPPORT),1)
+	OBJS += \
+		$(LOCAL_DIR)/usb30_dwc.o \
+		$(LOCAL_DIR)/usb30_dwc_hw.o \
+		$(LOCAL_DIR)/usb30_udc.o \
+		$(LOCAL_DIR)/usb30_wrapper.o
+endif
