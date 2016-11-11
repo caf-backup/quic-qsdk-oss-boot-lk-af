@@ -23,6 +23,15 @@
 #ifndef __TARGET_H
 #define __TARGET_H
 
+/* Target helper functions exposed to USB driver */
+typedef struct {
+	void (*mux_config)(void);
+	void (*phy_reset)(void);
+	void (*phy_init)(void);
+	void (*clock_init)(void);
+	uint8_t vbus_override;
+} target_usb_iface_t;
+
 /* super early platform initialization, before almost everything */
 void target_early_init(void);
 
@@ -46,6 +55,6 @@ unsigned target_pause_for_battery_charge(void);
 unsigned target_baseband(void);
 void target_serialno(unsigned char *buf);
 void target_fastboot_init(void);
-
+const char *target_usb_controller(void);
 
 #endif

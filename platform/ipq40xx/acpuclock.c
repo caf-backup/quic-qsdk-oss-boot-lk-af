@@ -113,6 +113,11 @@ void hsusb_clock_init(void)
 	clk_get_set_enable("usb_hs_clk", 60000000, 1);
 }
 
+/* enables usb30 interface and master clocks */
+void clock_usb30_init(void)
+{
+}
+
 /* Configure UART clock - based on the gsbi id */
 void clock_config_uart_dm(uint8_t id)
 {

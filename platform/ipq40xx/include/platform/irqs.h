@@ -43,6 +43,7 @@
 
 #define USB1_HS_BAM_IRQ         (GIC_SPI_START + 94)
 #define USB1_HS_IRQ             (GIC_SPI_START + 100)
+#define USB30_EE1_IRQ		(GIC_SPI_START + 132)
 #define USB2_IRQ                (GIC_SPI_START + 141)
 #define USB1_IRQ                (GIC_SPI_START + 142)
 

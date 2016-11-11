@@ -42,7 +42,6 @@
 #include <malloc.h>
 #include <assert.h>
 #include <board.h>
-#include <pm8x41.h>
 #include <platform/iomap.h>
 #include <platform/timer.h>
 #include <platform/iomap.h>
@@ -91,12 +90,6 @@ void usb_wrapper_ss_phy_configure(usb_wrapper_dev_t *dev)
 	/* .c */
 	REG_WRITE_FIELD(dev, SS_PHY_CTRL, REF_SS_PHY_EN, 1);
 
-	/* For Aragorn V1, reset value fix is required.*/
-	if ( (board_platform_id() == MSM8974) &&
-		 (board_soc_version() < BOARD_SOC_VERSION2))
-	{
-		REG_WRITE_FIELD(dev, SS_PHY_CTRL, SSC_REF_CLK_SEL, 0x108);
-	}
 }
 
 /* configure SS phy electrical params */
@@ -125,11 +118,6 @@ void usb_wrapper_hs_phy_configure(usb_wrapper_dev_t *dev)
 void usb_wrapper_workaround_10(usb_wrapper_dev_t *dev)
 {
 	/* 10. */
-	if ( (board_platform_id() == MSM8974) &&
-		 (board_soc_version() < BOARD_SOC_VERSION2))
-	{
-		REG_WRITE(dev, GENERAL_CFG, 0x78);
-	}
 }
 
 void usb_wrapper_workaround_11(usb_wrapper_dev_t *dev)

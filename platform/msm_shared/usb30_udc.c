@@ -129,14 +129,6 @@ static void phy_reset(usb_wrapper_dev_t *wrapper, struct udc_device *dev_info)
 	{
 		if (dev_info->t_usb_if->phy_reset)
 			dev_info->t_usb_if->phy_reset();
-
-		/* On some CDPs PHY_COMMON reset does not set
-		 * reset values in the phy_ctrl_common register.
-		 * Due to this USB does not get enumerated in fastboot
-		 * Force write the reset value
-		 */
-		if (board_platform_id() == APQ8084)
-			usb_wrapper_hs_phy_ctrl_force_write(wrapper);
 	}
 }
 
@@ -265,7 +257,7 @@ static void usb30_init(struct udc_device *dev_info)
 	dwc_ss_phy_workaround_12(dwc);
 
 	/* 13. */
-	usb_wrapper_workaround_13(wrapper);
+	//usb_wrapper_workaround_13(wrapper);
 
 	/* 14. needed only for host mode. ignored. */
 
