@@ -539,28 +539,12 @@ void dwc_usb2_phy_soft_reset(dwc_dev_t *dev)
 void dwc_ss_phy_workaround_12(dwc_dev_t *dev)
 {
 	/* 12. */
-	if ( platform_is_8974() &&
-		 (board_soc_version() < BOARD_SOC_VERSION2))
-	{
-		REG_WRITEI(dev, GUSB3PIPECTL, 0, 0x30C0003);
-	}
 }
 
 /*  AXI master config */
 void dwc_axi_master_config(dwc_dev_t *dev)
 {
-	uint32_t reg = 0;
-
 	/* 17. */
-	if ( platform_is_8974() &&
-		 (board_soc_version() < BOARD_SOC_VERSION2))
-	{
-		reg = (DWC_GSBUSCFG0_INCR4BRSTENA_BMSK |
-			   DWC_GSBUSCFG0_INCR8BRSTENA_BMSK |
-			   DWC_GSBUSCFG0_INCR16BRSTENA_BMSK);
-
-		REG_WRITE(dev, GSBUSCFG0, reg);
-	}
 }
 
 /* read the controller id and version information */

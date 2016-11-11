@@ -893,6 +893,6 @@ struct pll_rate {
     const uint32_t    i_bits;
 };
 #define PLL_RATE(l, m, n, v, d, i) { l, m, n, v, (d>>1), i }
-
+void clock_usb30_init(void);
 void clock_config_uart_dm(uint8_t id);
 #endif

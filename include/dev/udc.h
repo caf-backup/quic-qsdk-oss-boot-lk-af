@@ -29,6 +29,8 @@
 #ifndef __DEV_UDC_H
 #define __DEV_UDC_H
 
+#include <target.h>
+
 /* USB Device Controller Transfer Request */
 struct udc_request {
 	void *buf;
@@ -76,8 +78,9 @@ struct udc_device {
 	const char *manufacturer;
 	const char *product;
 	const char *serialno;
+	target_usb_iface_t *t_usb_if;
 };
-	
+
 int udc_init(struct udc_device *devinfo);
 int udc_register_gadget(struct udc_gadget *gadget);
 int udc_start(void);
@@ -95,12 +98,16 @@ int udc_stop(void);
 #define GET_INTERFACE        10
 #define SET_INTERFACE        11
 #define SYNCH_FRAME          12
+#define SET_SEL              48
 
 #define TYPE_DEVICE          1
 #define TYPE_CONFIGURATION   2
 #define TYPE_STRING          3
 #define TYPE_INTERFACE       4
 #define TYPE_ENDPOINT        5
+#define TYPE_BOS             15
+#define TYPE_DEVICE_CAP      16
+#define TYPE_SS_EP_COMP      48
 
 #define DEVICE_READ          0x80
 #define DEVICE_WRITE         0x00
@@ -114,6 +121,10 @@ int udc_stop(void);
 #define PORTSC_PTC           (0xF << 16)
 #define PORTSC_PTC_SE0_NAK	 (0x03 << 16)
 #define PORTSC_PTC_TST_PKT   (0x4 << 16)
+
+#define USB_EP_NUM_MASK      0x0f
+#define USB_EP_DIR_MASK      0x80
+#define USB_EP_DIR_IN        0x80
 
 struct setup_packet {
 	unsigned char type;
