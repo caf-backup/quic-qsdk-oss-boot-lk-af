@@ -35,6 +35,7 @@
 #include <baseband.h>
 #include <platform/iomap.h>
 #include <mmc.h>
+#include <platform/clock.h>
 #include <platform/timer.h>
 #include <platform/gpio.h>
 #include <reg.h>
@@ -213,6 +214,31 @@ int target_cont_splash_screen()
 	return 0;
 }
 
+/* identify the usb controller to be used for the target */
+const char * target_usb_controller()
+{
+	return "dwc";
+}
+
+void target_usb_phy_init(void)
+{
+}
+
+void target_usb_phy_reset(void)
+{
+	uint32_t val;
+
+	val = readl(GCC_USB_RST_CTRL_1);
+	val |= 0x14;
+	writel(val, GCC_USB_RST_CTRL_1);
+
+	mdelay(10);
+
+	val = readl(GCC_USB_RST_CTRL_1);
+	val &= ~(0x14);
+	writel(val, GCC_USB_RST_CTRL_1);
+}
+
 /* Do target specific usb initialization */
 void target_usb_init(void)
 {
@@ -223,6 +249,22 @@ void target_usb_init(void)
 	if (ret) {
 		dprintf(CRITICAL, "Failed to select USB controller type as USB2.0, scm call returned error (0x%x)\n", ret);
 	}
+}
+
+/* Initialize target specific USB handlers */
+target_usb_iface_t *target_usb30_init()
+{
+	target_usb_iface_t *t_usb_iface;
+
+	t_usb_iface = calloc(1, sizeof(target_usb_iface_t));
+	ASSERT(t_usb_iface);
+
+	t_usb_iface->phy_reset = target_usb_phy_reset;
+	t_usb_iface->phy_init = target_usb_phy_init;
+	t_usb_iface->clock_init = clock_usb30_init;
+	t_usb_iface->vbus_override = 1;
+
+	return t_usb_iface;
 }
 
 void target_mmc_init(unsigned char slot, unsigned int base)
