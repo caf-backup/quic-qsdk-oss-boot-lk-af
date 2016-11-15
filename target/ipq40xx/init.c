@@ -47,8 +47,10 @@
 #include <target/board.h>
 #include <scm.h>
 
-#define APPS_DLOAD_MAGIC1	0xE47B337D
-#define APPS_DLOAD_MAGIC2	0x0501CAB0
+#define APPS_DLOAD_MAGIC			0x10
+#define CLEAR_MAGIC				0x0
+#define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID 	0x9
+#define SCM_CMD_TZ_FORCE_DLOAD_ID 		0x10
 
 extern void dmb(void);
 
@@ -111,16 +113,23 @@ crypto_engine_type board_ce_type(void)
 	return platform_ce_type;
 }
 
+static void reset_crashdump(void)
+{
+        unsigned int magic_cookie = CLEAR_MAGIC;
+        unsigned int clear_info[] =
+                { 1 /* Disable wdog debug */, 0 /* SDI enable*/, };
+        scm_call(SCM_SVC_BOOT, SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID,
+                (const void *)&clear_info, sizeof(clear_info), NULL, 0);
+        scm_call(SCM_SVC_BOOT, SCM_CMD_TZ_FORCE_DLOAD_ID, &magic_cookie,
+                        sizeof(magic_cookie), NULL, 0);
+}
+
 void reboot_device(unsigned reboot_reason)
 {
 	writel(reboot_reason, RESTART_REASON_ADDR);
 
-	writel(1, MSM_WDT0_RST);
-	writel(0, MSM_WDT0_EN);
-	writel(0x31F3, MSM_WDT0_BT);
-	writel(3, MSM_WDT0_EN);
-	dmb();
-	writel(3, MSM_TCSR_BASE + TCSR_WDOG_CFG);
+	reset_crashdump();
+	writel(0, GCNT_PSHOLD);
 	mdelay(10000);
 
 	dprintf(CRITICAL, "Rebooting failed\n");
@@ -129,17 +138,23 @@ void reboot_device(unsigned reboot_reason)
 unsigned check_reboot_mode(void)
 {
 	unsigned restart_reason = 0;
+	int ret;
+	volatile uint32_t val;
 
 	/*
 	 * The kernel did not shutdown properly in the previous boot.
-	 * The SBLs would not have loaded RPM firmware, proceeding with
+	 * The SBLs would not have loaded QSEE firmware, proceeding with
 	 * the boot is not possible. Reboot the system cleanly.
 	 */
-	if ((readl(MSM_APPS_DLOAD_MAGIC1_ADDR) == APPS_DLOAD_MAGIC1) &&
-	    (readl(MSM_APPS_DLOAD_MAGIC2_ADDR) == APPS_DLOAD_MAGIC2)) {
+	 ret = scm_call(SCM_SVC_BOOT, SCM_SVC_RD, NULL,
+                        0, (void *)&val, sizeof(val));
+	if (val == APPS_DLOAD_MAGIC) {
+
+		val = 0x0;
+                ret = scm_call(SCM_SVC_BOOT, SCM_SVC_WR,
+                        (void *)&val, sizeof(val), NULL, 0);
 		dprintf(CRITICAL, "Apps Dload Magic set. Rebooting...\n");
-		writel(0, MSM_APPS_DLOAD_MAGIC1_ADDR);
-		writel(0, MSM_APPS_DLOAD_MAGIC2_ADDR);
+		mdelay(10000);
 		reboot_device(0);
 	}
 
