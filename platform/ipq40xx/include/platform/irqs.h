@@ -46,6 +46,9 @@
 #define USB30_EE1_IRQ		(GIC_SPI_START + 132)
 #define USB2_IRQ                (GIC_SPI_START + 141)
 #define USB1_IRQ                (GIC_SPI_START + 142)
+#define SDCC1_PWRCTL_IRQ	(GIC_SPI_START + 138)
+#define SDCC2_PWRCTL_IRQ	(GIC_SPI_START + 221)
+
 
 #define GSBI_QUP_IRQ(id)       ((id) <= 8 ? (GIC_SPI_START + 145 + 2*((id))) : \
                                             (GIC_SPI_START + 187 + 2*((id)-8)))

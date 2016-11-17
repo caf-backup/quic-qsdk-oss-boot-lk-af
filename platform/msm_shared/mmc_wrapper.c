@@ -81,13 +81,18 @@ __WEAK uint8_t ufs_get_num_of_luns(struct ufs_dev* dev)
 	return 0;
 }
 
+__WEAK uint32_t target_boot_device_emmc()
+{
+	return 1;
+}
+
 /*
  * Function: get mmc card
  * Arg     : None
  * Return  : Pointer to mmc card structure
  * Flow    : Get the card pointer from the device structure
  */
-static struct mmc_card *get_mmc_card()
+struct mmc_card *get_mmc_card()
 {
 	void *dev;
 	struct mmc_card *card;
@@ -182,7 +187,6 @@ uint32_t mmc_read(uint64_t data_addr, uint32_t *out, uint32_t data_len)
 
 	ASSERT(!(data_addr % block_size));
 	ASSERT(!(data_len % block_size));
-
 
 	if (target_boot_device_emmc())
 	{
@@ -576,3 +580,37 @@ void mmc_read_partition_table(uint8_t arg)
 		}
 	}
 }
+
+/*
+ * Reads a data of data_len from the address specified. data_len
+ * should be multiple of block size for block data transfer.
+ */
+unsigned int
+mmc_boot_read_from_card(struct mmc_boot_host *host,
+			struct mmc_boot_card *card,
+			unsigned long long data_addr,
+			unsigned int data_len, unsigned int *out)
+{
+	if (data_len % MMC_BLK_SZ) {
+		dprintf(CRITICAL, "ERROR: mmc read data length is not a multiple of %d bytes\n",
+			MMC_BLK_SZ);
+		return 0;
+	}
+
+	return mmc_read(data_addr, out, data_len);
+}
+
+struct mmc_boot_host *get_mmc_host(void)
+{
+	return NULL;
+}
+
+void set_sdc_power_ctrl(){}
+
+void mmc_boot_mci_clk_disable(){}
+
+void mmc_boot_mci_clk_enable(){}
+
+__WEAK void clock_config_cdc(uint8_t slot){}
+
+

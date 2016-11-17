@@ -57,7 +57,8 @@
 #define SDCC_CDC_OFFSET_CFG                      0x14C
 #define SDCC_CDC_SLAVE_DDA_CFG                   0x160
 #define SDCC_CSR_CDC_STATUS0                     0x164
-
+#define SDCC_DLL_CONFIG2_REG			 0x1b4
+#define CORE_DLL_CLK_DISABLE			 BIT(21)
 /* DLL & CDC helper macros */
 #define SDCC_DLL_PWR_SAVE_EN                      BIT(1)
 #define SDCC_DLL_LOCK_STAT                        BIT(7)
