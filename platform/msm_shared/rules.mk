@@ -14,9 +14,19 @@ OBJS += \
 	$(LOCAL_DIR)/jtag_hook.o \
 	$(LOCAL_DIR)/jtag.o \
 	$(LOCAL_DIR)/nand.o \
-	$(LOCAL_DIR)/mmc.o \
 	$(LOCAL_DIR)/partition_parser.o \
 	$(LOCAL_DIR)/crc32.o
+
+ifeq ($(ENABLE_SDHCI_SUPPORT),1)
+OBJS += \
+	$(LOCAL_DIR)/sdhci.o \
+	$(LOCAL_DIR)/sdhci_msm.o \
+	$(LOCAL_DIR)/mmc_sdhci.o \
+	$(LOCAL_DIR)/mmc_wrapper.o
+else
+OBJS += \
+	$(LOCAL_DIR)/mmc.o
+endif
 
 ifeq ($(PLATFORM),msm8x60)
 	OBJS += $(LOCAL_DIR)/mipi_dsi.o \
