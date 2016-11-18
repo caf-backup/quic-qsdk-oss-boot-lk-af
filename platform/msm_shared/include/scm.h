@@ -65,6 +65,10 @@ typedef struct {
 #define SCM_IO_READ     1
 #define SCM_IO_WRITE    2
 
+#define SCM_SVC_BOOT                    0x1
+#define SCM_SVC_WR                      0x10
+#define SCM_SVC_RD                      0x12
+
 static uint32 smc(uint32 cmd_addr);
 
 int decrypt_scm(uint32_t ** img_ptr, uint32_t * img_len_ptr);
