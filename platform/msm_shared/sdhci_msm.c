@@ -39,6 +39,7 @@
 #include <mmc.h>
 #include <sdhci.h>
 #include <sdhci_msm.h>
+#include <mmc_sdhci.h>
 
 /* Known data stored in the card & read during tuning
  * process. 64 bytes for 4bit bus width & 128 bytes
@@ -276,6 +277,7 @@ static void sdhci_msm_init_dll(struct sdhci_host *host)
 	REG_WRITE32(host, (REG_READ32(host, SDCC_DLL_CONFIG_REG) | SDCC_DLL_EN), SDCC_DLL_CONFIG_REG);
 	/* Write 1 to CLK_OUT_EN */
 	REG_WRITE32(host, (REG_READ32(host, SDCC_DLL_CONFIG_REG) | SDCC_DLL_CLK_OUT_EN), SDCC_DLL_CONFIG_REG);
+	REG_WRITE32(host, (REG_READ32(host, SDCC_DLL_CONFIG2_REG) & ~CORE_DLL_CLK_DISABLE), SDCC_DLL_CONFIG2_REG);
 	/* Wait for DLL_LOCK in DLL_STATUS register */
 	while(!((REG_READ32(host, SDCC_REG_DLL_STATUS)) & SDCC_DLL_LOCK_STAT));
 	/* Set the powersave back on */
