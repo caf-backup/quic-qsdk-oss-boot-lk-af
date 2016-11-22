@@ -478,6 +478,9 @@ static struct branch_clk ebi2_clk = {
 	.b = {
 		.ctl_reg = (void *)EBI2_CLK_CTL,
 		.en_mask = BIT(4),
+		.halt_reg = (void *)CLK_HALT_CFPB_STATEA_REG,
+		.halt_bit = 1,
+
 	},
 	.c = {
 		.dbg_name = "ebi2_clk",
