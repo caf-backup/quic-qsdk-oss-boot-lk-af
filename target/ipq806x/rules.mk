@@ -34,4 +34,5 @@ DEFINES += \
 OBJS += \
 	$(LOCAL_DIR)/boards.o \
 	$(LOCAL_DIR)/init.o \
-	$(LOCAL_DIR)/meminfo.o
+	$(LOCAL_DIR)/meminfo.o \
+	$(LOCAL_DIR)/athrs17_phy.o
