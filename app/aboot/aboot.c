@@ -33,7 +33,6 @@
 #include <app.h>
 #include <debug.h>
 #include <arch/arm.h>
-#include <dev/udc.h>
 #include <string.h>
 #include <limits.h>
 #include <kernel/thread.h>
@@ -277,14 +276,6 @@ static int auth_kernel_img = 0;
 
 static device_info device = {DEVICE_MAGIC, 0, 0};
 
-static struct udc_device surf_udc_device = {
-	.vendor_id	= 0x18d1,
-	.product_id	= 0xD00D,
-	.version_id	= 0x0100,
-	.manufacturer	= "Google",
-	.product	= "Android",
-};
-
 struct atag_ptbl_entry
 {
 	char name[16];
@@ -398,7 +389,11 @@ unsigned char *update_cmdline(const char * cmdline)
 	if (cmdline_len > 0) {
 		const char *src;
 		char *dst = malloc((cmdline_len + 4) & (~3));
-		assert(dst != NULL);
+		if (!dst) {
+			dprintf(CRITICAL, "%s:malloc failed for cmdline\n",
+				__func__);
+			return NULL;
+		}
 
 		/* Save start ptr for debug print */
 		cmdline_final = dst;
@@ -965,7 +960,11 @@ int boot_linux_from_mmc(void)
 			memmove((void *) dt_buf, (char *)dt_table_offset, page_size);
 
 			/* Restriction that the device tree entry table should be less than a page*/
-			ASSERT(((table->num_entries * sizeof_dt_entry(table)) + DEV_TREE_HEADER_SIZE) < hdr->page_size);
+			if (((table->num_entries * sizeof_dt_entry(table)) + DEV_TREE_HEADER_SIZE) >= hdr->page_size) {
+				dprintf(CRITICAL, "%s: ERROR: device tree entry table is not less than a page",
+					__func__);
+				return -1;
+			}
 
 			/* Validate the device tree table header */
 			if((table->magic != DEV_TREE_MAGIC) && (table->version > DEV_TREE_VERSION)) {
@@ -1036,7 +1035,11 @@ int boot_linux_from_mmc(void)
 			table = (struct dt_table*) dt_buf;
 
 			/* Restriction that the device tree entry table should be less than a page*/
-			ASSERT(((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
+			if (((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) >= hdr->page_size) {
+				dprintf(CRITICAL, "%s: ERROR: device tree entry table is not less than a page\n",
+					__func__);
+				return -1;
+			}
 
 			/* Validate the device tree table header */
 			if((table->magic != DEV_TREE_MAGIC) && (table->version != DEV_TREE_VERSION)) {
@@ -1286,7 +1289,11 @@ int boot_linux_from_flash(void)
 			table = (struct dt_table*) dt_buf;
 
 			/* Restriction that the device tree entry table should be less than a page*/
-			ASSERT(((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
+			if (((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) >= hdr->page_size) {
+				dprintf(CRITICAL, "%s: ERROR: device tree entry table is not less than a page",
+					__func__);
+				return -1;
+			}
 
 			/* Validate the device tree table header */
 			if((table->magic != DEV_TREE_MAGIC) && (table->version != DEV_TREE_VERSION)) {
@@ -1530,7 +1537,11 @@ int copy_dtb(uint8_t *boot_image_start)
 		table = boot_image_start + dt_image_offset;
 
 		/* Restriction that the device tree entry table should be less than a page*/
-		ASSERT(((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) < hdr->page_size);
+		if (((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) >= hdr->page_size) {
+			dprintf(CRITICAL, "%s: ERROR: device tree entry table is not less than a page",
+				__func__);
+			return -1;
+		}
 
 		/* Validate the device tree table header */
 		if((table->magic != DEV_TREE_MAGIC) && (table->version != DEV_TREE_VERSION)) {
@@ -1671,7 +1682,7 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 #endif
 
 	fastboot_okay("");
-	udc_stop();
+	fastboot_stop();
 
 	memmove((void*) hdr->ramdisk_addr, ptr + page_size + kernel_actual, hdr->ramdisk_size);
 	memmove((void*) hdr->kernel_addr, ptr + page_size, hdr->kernel_size);
@@ -2053,7 +2064,7 @@ void cmd_flash(const char *arg, void *data, unsigned sz)
 void cmd_continue(const char *arg, void *data, unsigned sz)
 {
 	fastboot_okay("");
-	udc_stop();
+	fastboot_stop();
 	if (target_is_emmc_boot())
 	{
 		boot_linux_from_mmc();
@@ -2163,7 +2174,6 @@ void aboot_fastboot_register_commands(void)
 void aboot_init(const struct app_descriptor *app)
 {
 	unsigned reboot_mode = 0;
-	unsigned usb_init = 0;
 	unsigned sz = 0;
 
 	/* Setup page size information for nand/emmc reads */
@@ -2188,7 +2198,6 @@ void aboot_init(const struct app_descriptor *app)
 
 	target_serialno((unsigned char *) sn_buf);
 	dprintf(SPEW,"serial number: %s\n",sn_buf);
-	surf_udc_device.serialno = sn_buf;
 
 	/* Check if we should do something other than booting up */
 	if (keys_get_state(KEY_HOME) != 0)
@@ -2246,19 +2255,14 @@ void aboot_init(const struct app_descriptor *app)
 	}
 	dprintf(CRITICAL, "ERROR: Could not do normal boot. Reverting "
 		"to fastboot mode.\n");
-
 fastboot:
-
-	target_fastboot_init();
-
-	if(!usb_init)
-		udc_init(&surf_udc_device);
-
+	/* We are here means regular boot did not happen. Start fastboot. */
+	/* register aboot specific fastboot commands */
 	aboot_fastboot_register_commands();
+	/* dump partition table for debug info */
 	partition_dump();
 	sz = target_get_max_flash_size();
 	fastboot_init(target_get_scratch_address(), sz);
-	udc_start();
 }
 
 APP_START(aboot)
@@ -2286,6 +2290,7 @@ void * get_device_tree_ptr(struct dt_table *table)
 	{
 		if((dt_platform_id(table, dt_entry_ptr) == board_platform_id()) &&
 		   (dt_variant_id(table, dt_entry_ptr) == board_hardware_id()) &&
+		   (dt_subtype_id(table, dt_entry_ptr) == board_subtype_id()) &&
 		   (dt_soc_rev(table, dt_entry_ptr) == 0)){
 				return dt_entry_ptr;
 		}
@@ -2325,6 +2330,10 @@ int update_device_tree(const void * fdt, char *cmdline,
 	offset = fdt_path_offset(fdt,"/memory");
 
 	memory_reg = target_dev_tree_mem(&len);
+	if(!memory_reg) {
+		dprintf(CRITICAL, "ERROR: %s:target_dev_tree_mem failed\n",__func__);
+		return -1;
+	}
 
 	/* Adding the memory values to the reg property */
 	ret = fdt_setprop(fdt, offset, "reg", memory_reg, sizeof(uint32_t) * len * 2);
@@ -2344,6 +2353,11 @@ int update_device_tree(const void * fdt, char *cmdline,
 
 	/* Adding the cmdline to the chosen node */
 	final_cmdline = update_cmdline(cmdline);
+	if(!final_cmdline) {
+		dprintf(CRITICAL, "ERROR: %s:update_cmdline failed\n",__func__);
+		return -1;
+	}
+
 	ret = fdt_setprop_string(fdt, offset, "bootargs", final_cmdline);
 	if(ret)
 	{

@@ -44,7 +44,7 @@ typedef struct {
 } mem_info;
 
 mem_info fixed_memory[] = {
-	{.size = 0x40000000, .start_addr = 0x40000000},
+	{.size = 0x10000000, .start_addr = 0x80000000},
 };
 
 uint32_t *
@@ -77,7 +77,7 @@ target_dev_tree_create(uint32_t * ptr, mem_info usable_mem_map[],
 uint32_t *
 target_dev_tree_mem(uint32_t * num_of_entries)
 {
-	struct smem_ram_ptable ram_ptable;
+	struct smem_ram_ptable_v1 ram_ptable;
 	uint32_t *meminfo_ptr;
 	uint32_t num_of_sections = 0;
 	uint32_t *ptr;
@@ -89,7 +89,7 @@ target_dev_tree_mem(uint32_t * num_of_entries)
 	int overflow = 0;
 
 	/* Make sure RAM partition table is initialized */
-	if (!(smem_ram_ptable_init(&ram_ptable))) {
+	if (!(smem_ram_ptable_init_v1(&ram_ptable))) {
 		dprintf(CRITICAL, "%s: ERROR: RAM partition table is not initialized \n",
 			__func__);
 		return NULL;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -24,45 +24,46 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
+#ifndef _USB30_WRAPPER_H
+#define _USB30_WRAPPER_H
 
-#ifndef __BOARD_H
-#define __BOARD_H
+typedef enum
+{
+	DBM_MODE_BYPASS = 0,
+	DBM_MODE_ENABLED
+} dbm_mode_t;
 
-#include <smem.h>
 
-#define BOARD_SOC_VERSION1 0x10000
-#define BOARD_SOC_VERSION2 0x20000
-#define BOARD_SOC_VERSION2P5 0x30000
-#define LINUX_MACHTYPE_UNKNOWN 0
-#define MAX_PMIC_DEVICES       SMEM_MAX_PMIC_DEVICES
+typedef struct {
+	void     *qscratch_base;
 
-struct board_pmic_data {
-	uint32_t pmic_type;
-	uint32_t pmic_version;
-	uint32_t pmic_target;
-};
+} usb_wrapper_config_t;
 
-struct board_data {
-	uint32_t platform;
-	uint32_t foundry_id;
-	uint32_t platform_version;
-	uint32_t platform_hw;
-	uint32_t platform_subtype;
-	uint32_t target;
-	uint32_t baseband;
-	struct board_pmic_data pmic_info[MAX_PMIC_DEVICES];
-	uint32_t platform_hlos_subtype;
-};
+typedef struct
+{
+   void      *base;
 
-void board_init();
-void target_detect(struct board_data *);
-void target_baseband_detect(struct board_data *);
-uint32_t board_platform_id();
-uint32_t board_target_id();
-uint32_t board_baseband();
-uint32_t board_hardware_id();
-uint32_t board_subtype_id();
-uint32_t board_platform_ver();
+} usb_wrapper_dev_t;
+
+
+usb_wrapper_dev_t *usb_wrapper_init(usb_wrapper_config_t *config);
+
+void usb_wrapper_dbm_mode(usb_wrapper_dev_t *dev, dbm_mode_t mode);
+void usb_wrapper_ram_configure(usb_wrapper_dev_t *dev);
+
+void usb_wrapper_ss_phy_reset(usb_wrapper_dev_t *dev);
+void usb_wrapper_ss_phy_configure(usb_wrapper_dev_t *dev);
+void usb_wrapper_ss_phy_electrical_config(usb_wrapper_dev_t *dev);
+
+void usb_wrapper_hs_phy_init(usb_wrapper_dev_t *dev);
+void usb_wrapper_hs_phy_configure(usb_wrapper_dev_t *dev);
+
+void usb_wrapper_vbus_override(usb_wrapper_dev_t *dev);
+
+void usb_wrapper_workaround_10(usb_wrapper_dev_t *dev);
+void usb_wrapper_workaround_11(usb_wrapper_dev_t *dev);
+void usb_wrapper_workaround_13(usb_wrapper_dev_t *dev);
+void usb_wrapper_hs_phy_ctrl_force_write(usb_wrapper_dev_t *dev);
+
 #endif

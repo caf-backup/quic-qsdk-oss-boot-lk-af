@@ -59,6 +59,24 @@ ifeq ($(PLATFORM),msm8960)
 			$(LOCAL_DIR)/timer.o \
 			$(LOCAL_DIR)/mdp_lcdc.o
 endif
+ifeq ($(PLATFORM),ipq40xx)
+	OBJS +=	$(LOCAL_DIR)/qtimer.o \
+			$(LOCAL_DIR)/qtimer_mmap.o \
+			$(LOCAL_DIR)/uart_dm.o \
+			$(LOCAL_DIR)/qgic.o \
+			$(LOCAL_DIR)/crypto4_eng.o \
+			$(LOCAL_DIR)/crypto_hash.o \
+			$(LOCAL_DIR)/certificate.o \
+			$(LOCAL_DIR)/image_verify.o \
+			$(LOCAL_DIR)/scm.o \
+			$(LOCAL_DIR)/interrupts.o \
+			$(LOCAL_DIR)/clock-local.o \
+			$(LOCAL_DIR)/clock.o \
+			$(LOCAL_DIR)/clock_pll.o \
+			$(LOCAL_DIR)/board.o \
+			$(LOCAL_DIR)/display.o \
+			$(LOCAL_DIR)/bam.o
+endif
 
 ifeq ($(PLATFORM),ipq806x)
 	OBJS += $(LOCAL_DIR)/i2c_qup.o \
@@ -144,4 +162,12 @@ ifeq ($(PLATFORM),mdm9x25)
 			$(LOCAL_DIR)/qtimer.o \
 			$(LOCAL_DIR)/qtimer_mmap.o \
 			$(LOCAL_DIR)/board.o
+endif
+
+ifeq ($(ENABLE_USB30_SUPPORT),1)
+	OBJS += \
+		$(LOCAL_DIR)/usb30_dwc.o \
+		$(LOCAL_DIR)/usb30_dwc_hw.o \
+		$(LOCAL_DIR)/usb30_udc.o \
+		$(LOCAL_DIR)/usb30_wrapper.o
 endif

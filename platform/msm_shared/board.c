@@ -42,13 +42,40 @@ static struct board_data board = {UNKNOWN,
 	PMIC_IS_INVALID,
 	0};
 
+
+/*
+ * The HW platform revision is specified as qcom,board_id in the dts file
+ *  which is <variant_id, subtype_id>
+ * This function returns the variant_id. Currently the variant_id is defined
+ * as HW_PLATFORM_MTP.
+ */
+static unsigned get_hw_platform_variant()
+{
+	return HW_PLATFORM_MTP;
+}
+
+/*
+ * The platform subtype is specified as qcom,board_id in the dts file
+ *  which is <variant_id, subtype_id>
+ * This function returns the subtype_id. Currently the subtype_id is defined
+ * as 0.
+ * Modify here to read the subtype id accordingly.
+ */
+static unsigned get_hw_platform_subtype()
+{
+	return 0;
+}
+
 static void platform_detect()
 {
 	struct smem_board_info_v6 board_info_v6;
 	struct smem_board_info_v7 board_info_v7;
+	struct smem_board_info_v8 board_info_v8;
 	unsigned int board_info_len = 0;
 	unsigned ret = 0;
 	unsigned format = 0;
+	unsigned pmic_type = 0;
+	uint8_t i;
 
 	ret = smem_read_alloc_entry_offset(SMEM_BOARD_INFO_LOCATION,
 						   &format, sizeof(format), 0);
@@ -66,10 +93,8 @@ static void platform_detect()
 			return;
 
 		board.platform = board_info_v6.board_info_v3.msm_id;
-		board.msm_version = board_info_v6.board_info_v3.msm_version;
-		board.platform_hw = board_info_v6.board_info_v3.hw_platform;
+		board.platform_version = board_info_v6.board_info_v3.msm_version;
 		board.platform_subtype = board_info_v6.platform_subtype;
-		board.platform_version = board_info_v6.platform_version;
 	}
 	else if (format == 7)
 	{
@@ -82,18 +107,81 @@ static void platform_detect()
 			return;
 
 		board.platform = board_info_v7.board_info_v3.msm_id;
-		board.msm_version = board_info_v7.board_info_v3.msm_version;
-		board.platform_hw = board_info_v7.board_info_v3.hw_platform;
+		board.platform_version = board_info_v7.board_info_v3.msm_version;
 		board.platform_subtype = board_info_v7.platform_subtype;
-		board.platform_version = board_info_v7.platform_version;
-		board.pmic_type = board_info_v7.pmic_type;
-		board.pmic_version = board_info_v7.pmic_version;
+		board.pmic_info[0].pmic_type = board_info_v7.pmic_type;
+		board.pmic_info[0].pmic_version = board_info_v7.pmic_version;
+	}
+	else if (format >= 8)
+		{
+
+			board_info_len = sizeof(board_info_v8);
+
+			ret = smem_read_alloc_entry(SMEM_BOARD_INFO_LOCATION,
+					&board_info_v8,
+					board_info_len);
+			if (ret)
+				return;
+
+			board.platform = board_info_v8.board_info_v3.msm_id;
+			board.platform_version =
+				board_info_v8.board_info_v3.msm_version;
+			board.platform_hw =
+				board_info_v8.board_info_v3.hw_platform;
+			board.platform_subtype = board_info_v8.platform_subtype;
+
+			/*
+			 * fill in board.target with variant_id information
+			 * bit no  |31  24 | 23   16 | 15   8  |7    0|
+			 * board.target = |hw_platform| plat_hw_ver major  |
+			 *		  plat_hw_ver minor  |subtype|
+			 *
+			 */
+			board.target = (((board_info_v8.board_info_v3.hw_platform
+					& 0xff) << 24) |
+					(((board_info_v8.platform_version >> 16)
+					& 0xff) << 16) |
+					((board_info_v8.platform_version & 0xff)
+					<< 8) |
+					(board_info_v8.platform_subtype & 0xff));
+
+			for (i = 0; i < SMEM_MAX_PMIC_DEVICES; i++) {
+				board.pmic_info[i].pmic_type =
+					board_info_v8.pmic_info[i].pmic_type;
+				board.pmic_info[i].pmic_version =
+					board_info_v8.pmic_info[i].pmic_version;
+
+				/*
+				 * fill in pimc_board_info with pmic type and
+				 * pmic version information
+				 * bit no  |31  24 | 23  16 | 15   8 |7  0|
+				 * pimc_board_info = |Unused | Major version |
+				 * Minor version|PMIC_MODEL|
+				 *
+				 */
+				pmic_type =
+					board_info_v8.pmic_info[i].pmic_type ==
+					PMIC_IS_INVALID?
+					0 : board_info_v8.pmic_info[i].pmic_type;
+
+				board.pmic_info[i].pmic_target =
+					(((board_info_v8.pmic_info[i].pmic_version >> 16)
+					& 0xff) << 16) |
+					((board_info_v8.pmic_info[i].pmic_version
+					& 0xff) << 8) | (pmic_type & 0xff);
+			}
+
+			if (format == 0x9)
+				board.foundry_id = board_info_v8.foundry_id;
 	}
 	else
 	{
 		dprintf(CRITICAL, "Unsupported board info format\n");
 		ASSERT(0);
 	}
+
+	if (get_hw_platform_variant())
+		 board.platform_hw = get_hw_platform_variant();
 }
 
 void board_init()
@@ -123,19 +211,9 @@ uint32_t board_hardware_id()
 	return board.platform_hw;
 }
 
-uint32_t board_pmic_type()
+uint32_t board_subtype_id()
 {
-	return board.pmic_type;
-}
-
-uint32_t board_pmic_ver()
-{
-	return board.pmic_version;
-}
-
-uint32_t board_msm_version()
-{
-	return board.msm_version;
+	return get_hw_platform_subtype();
 }
 
 uint32_t board_platform_ver()

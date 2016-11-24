@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -24,45 +24,31 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
+#ifndef _USB30_DWC_HW_
+#define _USB30_DWC_HW_
 
-#ifndef __BOARD_H
-#define __BOARD_H
+void dwc_ep_cmd_start_transfer(dwc_dev_t *dev, uint8_t ep_phy_num);
+void dwc_ep_cmd_end_transfer(dwc_dev_t *dev, uint8_t ep_phy_num);
+void dwc_ep_cmd_set_config(dwc_dev_t *dev, uint8_t index, uint8_t action);
+void dwc_ep_cmd_set_transfer_resource(dwc_dev_t *dev, uint8_t index);
+void dwc_ep_cmd_stall(dwc_dev_t *dev, uint8_t ep_phy_num);
+void dwc_ep_cmd_start_new_config(dwc_dev_t *dev,
+								 uint8_t ep_phy_num,
+								 uint8_t resource_idx);
 
-#include <smem.h>
+void dwc_ep_enable(dwc_dev_t *dev, uint8_t ep_phy_num);
+void dwc_ep_disable(dwc_dev_t *dev, uint8_t ep_phy_num);
+void dwc_ep_disable_non_control(dwc_dev_t *dev);
 
-#define BOARD_SOC_VERSION1 0x10000
-#define BOARD_SOC_VERSION2 0x20000
-#define BOARD_SOC_VERSION2P5 0x30000
-#define LINUX_MACHTYPE_UNKNOWN 0
-#define MAX_PMIC_DEVICES       SMEM_MAX_PMIC_DEVICES
+void dwc_event_init(dwc_dev_t *dev);
+uint16_t dwc_event_get_next(dwc_dev_t *dev, uint32_t *event);
+void dwc_event_processed(dwc_dev_t *dev, uint16_t count);
+void dwc_event_device_enable(dwc_dev_t *dev, uint32_t events);
 
-struct board_pmic_data {
-	uint32_t pmic_type;
-	uint32_t pmic_version;
-	uint32_t pmic_target;
-};
-
-struct board_data {
-	uint32_t platform;
-	uint32_t foundry_id;
-	uint32_t platform_version;
-	uint32_t platform_hw;
-	uint32_t platform_subtype;
-	uint32_t target;
-	uint32_t baseband;
-	struct board_pmic_data pmic_info[MAX_PMIC_DEVICES];
-	uint32_t platform_hlos_subtype;
-};
-
-void board_init();
-void target_detect(struct board_data *);
-void target_baseband_detect(struct board_data *);
-uint32_t board_platform_id();
-uint32_t board_target_id();
-uint32_t board_baseband();
-uint32_t board_hardware_id();
-uint32_t board_subtype_id();
-uint32_t board_platform_ver();
+uint32_t dwc_coreid(dwc_dev_t *dev);
+uint8_t dwc_connectspeed(dwc_dev_t *dev);
+uint8_t dwc_device_run_status(dwc_dev_t *dev);
+void dwc_gctl_init(dwc_dev_t *dev);
+void dwc_axi_master_config(dwc_dev_t *dev);
 #endif

@@ -58,7 +58,11 @@ partition_read_table(struct mmc_boot_host *mmc_host,
 
 	/* Allocate partition entries array */
 	partition_entries = (struct partition_entry *) calloc(NUM_PARTITIONS, sizeof(struct partition_entry));
-	ASSERT(partition_entries);
+	if (partition_entries == NULL) {
+		dprintf(CRITICAL, "%s: calloc failed for partition entries\n",
+				__func__);
+		return -1;
+	}
 
 	/* Read MBR of the card */
 	ret = mmc_boot_read_mbr(mmc_host, mmc_card);
