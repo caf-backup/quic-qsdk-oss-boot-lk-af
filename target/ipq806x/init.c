@@ -104,12 +104,23 @@ void target_init(void)
 {
 	unsigned char slot;
 	unsigned platform_id = board_platform_id();
+	gpio_func_data_t *gmac_gpio;
+	int i;
 
 	dprintf(INFO, "target_init()\n");
 	dprintf(INFO, "board platform id is 0x%x\n",  platform_id);
 	dprintf(INFO, "board platform verson is 0x%x\n",  board_platform_ver());
 
 	ipq_nss_init();
+	get_board_param(board_machtype());
+	ipq_configure_gpio(gboard_param->gmac_gpio,
+			gboard_param->gmac_gpio_count);
+	ipq_athrs17_init();
+	gmac_gpio = gboard_param->gmac_gpio;
+	for (i=0; i < gboard_param->gmac_gpio_count; i++) {
+		gpio_tlmm_config(gmac_gpio->gpio, 0, 0, GPIO_PULL_DOWN, 0, 0);
+		gmac_gpio++;
+	}
 
 	/* Need to initialize before splash screen init if splash is being read from emmc*/
 	/* Trying Slot 1 first */
