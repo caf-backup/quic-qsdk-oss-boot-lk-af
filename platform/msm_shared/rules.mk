@@ -85,7 +85,8 @@ ifeq ($(PLATFORM),ipq40xx)
 			$(LOCAL_DIR)/clock_pll.o \
 			$(LOCAL_DIR)/board.o \
 			$(LOCAL_DIR)/display.o \
-			$(LOCAL_DIR)/bam.o
+			$(LOCAL_DIR)/bam.o \
+			$(LOCAL_DIR)/fuse_blower.o
 endif
 
 ifeq ($(PLATFORM),ipq806x)
@@ -104,7 +105,8 @@ ifeq ($(PLATFORM),ipq806x)
 			$(LOCAL_DIR)/board.o \
 			$(LOCAL_DIR)/display.o \
 			$(LOCAL_DIR)/bam.o \
-			$(LOCAL_DIR)/timer.o
+			$(LOCAL_DIR)/timer.o \
+			$(LOCAL_DIR)/fuse_blower.o
 endif
 
 ifeq ($(PLATFORM),copper)
