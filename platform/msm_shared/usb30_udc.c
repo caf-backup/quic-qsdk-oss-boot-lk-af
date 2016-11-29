@@ -219,6 +219,7 @@ static void usb30_init(struct udc_device *dev_info)
 
 	/* 2. Put controller in reset */
 	dwc_reset(dwc, 1);
+	writel(TCSR_USB_HSPHY_DEVICE_MODE, MSM_TCSR_BASE + TCSR_USB_HSPHY_CONFIG);
 
 	/* Steps 3 - 7 must be done while dwc is in reset condition */
 
