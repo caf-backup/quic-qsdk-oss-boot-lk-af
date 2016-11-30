@@ -98,6 +98,7 @@ void platform_uninit(void)
 {
 	dprintf(INFO, "%s()\n", __func__);
 	qtimer_uninit();
+	target_mmc_deinit();
 	clock_disable_mmc();
 
 }
