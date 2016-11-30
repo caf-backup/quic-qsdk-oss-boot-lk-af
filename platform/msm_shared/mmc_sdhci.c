@@ -1546,7 +1546,8 @@ static uint32_t mmc_card_init(struct mmc_device *dev)
 				return mmc_return;
 			}
 		}
-		else if (host->caps.sdr104_support && mmc_card_supports_hs200_mode(card))
+		else if (host->caps.sdr104_support &&
+			 mmc_card_supports_hs200_mode(card) && cfg->hs200_support)
 		{
 			mmc_return = mmc_set_hs200_mode(host, card, bus_width);
 
@@ -1555,7 +1556,8 @@ static uint32_t mmc_card_init(struct mmc_device *dev)
 								  card->rca);
 				return mmc_return;
 			}
-		} else if (host->caps.ddr_support && mmc_card_supports_ddr_mode(card)) {
+		} else if (host->caps.ddr_support &&
+			   mmc_card_supports_ddr_mode(card) && cfg->ddr_support) {
 			mmc_return = mmc_set_ddr_mode(host, card);
 
 			if (mmc_return) {
