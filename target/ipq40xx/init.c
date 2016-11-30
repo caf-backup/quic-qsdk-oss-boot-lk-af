@@ -130,6 +130,11 @@ void *target_mmc_device()
 	return (void *) mmc_dev;
 }
 
+void target_mmc_deinit()
+{
+	sdhci_mode_disable(&(mmc_dev->host));
+}
+
 void target_init(void)
 {
 	unsigned char slot;
