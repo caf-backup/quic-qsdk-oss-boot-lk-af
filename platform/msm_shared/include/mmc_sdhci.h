@@ -303,6 +303,8 @@ struct mmc_config_data {
 	uint16_t bus_width;    /* Bus width used */
 	uint32_t max_clk_rate; /* Max clock rate supported */
 	uint8_t hs400_support; /* SDHC HS400 mode supported or not */
+	uint8_t hs200_support; /* SDHC HS200 mode supported or not */
+	uint8_t ddr_support; /* SDHC DDR mode supported or not */
 };
 
 /* mmc device structure */

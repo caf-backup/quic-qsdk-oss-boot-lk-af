@@ -93,7 +93,7 @@ void mdelay(unsigned msecs)
 {
 	uint64_t ticks;
 
-	ticks = (msecs * ticks_per_sec) / 1000;
+	ticks = ((uint64_t)msecs * ticks_per_sec) / 1000;
 
 	delay(ticks);
 }
@@ -102,7 +102,7 @@ void udelay(unsigned usecs)
 {
 	uint64_t ticks;
 
-	ticks = (usecs * ticks_per_sec) / 1000000;
+	ticks = ((uint64_t)usecs * ticks_per_sec) / 1000000;
 
 	delay(ticks);
 }

@@ -116,6 +116,8 @@ void target_sdc_init()
 	config.pwrctl_base  = mmc_pwrctl_base[config.slot - 1];
 	config.pwr_irq      = mmc_sdc_pwrctl_irq[config.slot - 1];
 	config.hs400_support = 0;
+	config.hs200_support = 0;
+	config.ddr_support = 0;
 
 	if (!(mmc_dev = mmc_init(&config))) {
 		dprintf(CRITICAL, "mmc init failed!");
@@ -126,6 +128,11 @@ void target_sdc_init()
 void *target_mmc_device()
 {
 	return (void *) mmc_dev;
+}
+
+void target_mmc_deinit()
+{
+	sdhci_mode_disable(&(mmc_dev->host));
 }
 
 void target_init(void)
