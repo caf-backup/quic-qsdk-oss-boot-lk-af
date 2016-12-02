@@ -71,7 +71,7 @@ ifeq ($(PLATFORM),msm8960)
 endif
 ifeq ($(PLATFORM),ipq40xx)
 	OBJS +=	$(LOCAL_DIR)/qtimer.o \
-			$(LOCAL_DIR)/qtimer_mmap.o \
+			$(LOCAL_DIR)/qtimer_cp15.o \
 			$(LOCAL_DIR)/uart_dm.o \
 			$(LOCAL_DIR)/qgic.o \
 			$(LOCAL_DIR)/crypto4_eng.o \
