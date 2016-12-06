@@ -14,9 +14,19 @@ OBJS += \
 	$(LOCAL_DIR)/jtag_hook.o \
 	$(LOCAL_DIR)/jtag.o \
 	$(LOCAL_DIR)/nand.o \
-	$(LOCAL_DIR)/mmc.o \
 	$(LOCAL_DIR)/partition_parser.o \
 	$(LOCAL_DIR)/crc32.o
+
+ifeq ($(ENABLE_SDHCI_SUPPORT),1)
+OBJS += \
+	$(LOCAL_DIR)/sdhci.o \
+	$(LOCAL_DIR)/sdhci_msm.o \
+	$(LOCAL_DIR)/mmc_sdhci.o \
+	$(LOCAL_DIR)/mmc_wrapper.o
+else
+OBJS += \
+	$(LOCAL_DIR)/mmc.o
+endif
 
 ifeq ($(PLATFORM),msm8x60)
 	OBJS += $(LOCAL_DIR)/mipi_dsi.o \
@@ -61,7 +71,7 @@ ifeq ($(PLATFORM),msm8960)
 endif
 ifeq ($(PLATFORM),ipq40xx)
 	OBJS +=	$(LOCAL_DIR)/qtimer.o \
-			$(LOCAL_DIR)/qtimer_mmap.o \
+			$(LOCAL_DIR)/qtimer_cp15.o \
 			$(LOCAL_DIR)/uart_dm.o \
 			$(LOCAL_DIR)/qgic.o \
 			$(LOCAL_DIR)/crypto4_eng.o \
@@ -75,7 +85,8 @@ ifeq ($(PLATFORM),ipq40xx)
 			$(LOCAL_DIR)/clock_pll.o \
 			$(LOCAL_DIR)/board.o \
 			$(LOCAL_DIR)/display.o \
-			$(LOCAL_DIR)/bam.o
+			$(LOCAL_DIR)/bam.o \
+			$(LOCAL_DIR)/fuse_blower.o
 endif
 
 ifeq ($(PLATFORM),ipq806x)
@@ -94,7 +105,8 @@ ifeq ($(PLATFORM),ipq806x)
 			$(LOCAL_DIR)/board.o \
 			$(LOCAL_DIR)/display.o \
 			$(LOCAL_DIR)/bam.o \
-			$(LOCAL_DIR)/timer.o
+			$(LOCAL_DIR)/timer.o \
+			$(LOCAL_DIR)/fuse_blower.o
 endif
 
 ifeq ($(PLATFORM),copper)

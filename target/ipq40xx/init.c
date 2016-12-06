@@ -38,6 +38,7 @@
 #include <platform/clock.h>
 #include <platform/timer.h>
 #include <platform/gpio.h>
+#include <platform/irqs.h>
 #include <reg.h>
 #include <gsbi.h>
 #include <target.h>
@@ -47,6 +48,7 @@
 #include <board.h>
 #include <target/board.h>
 #include <scm.h>
+#include <mmc_sdhci.h>
 
 #define APPS_DLOAD_MAGIC			0x10
 #define CLEAR_MAGIC				0x0
@@ -67,6 +69,19 @@ static crypto_engine_type platform_ce_type = CRYPTO_ENGINE_TYPE_SW;
 static void target_uart_init(void);
 #define DELAY 1
 
+static void set_sdc_power_ctrl(void);
+
+static struct mmc_device *mmc_dev;
+
+static uint32_t mmc_pwrctl_base[] =
+	{ MSM_SDC1_BASE, MSM_SDC2_BASE };
+
+static uint32_t mmc_sdhci_base[] =
+	{ MSM_SDC1_SDHCI_BASE, MSM_SDC2_SDHCI_BASE };
+
+static uint32_t  mmc_sdc_pwrctl_irq[] =
+	{ SDCC1_PWRCTL_IRQ, SDCC2_PWRCTL_IRQ };
+
 int target_is_emmc_boot(void)
 {
 	return 1;
@@ -85,6 +100,40 @@ void shutdown_device(void)
 
 	dprintf(CRITICAL, "Shutdown failed.\n");
 }
+void target_sdc_init()
+{
+	struct mmc_config_data config;
+
+	/* Set drive strength & pull ctrl values */
+	set_sdc_power_ctrl();
+
+	config.bus_width = DATA_BUS_WIDTH_8BIT;
+	config.max_clk_rate = MMC_CLK_200MHZ;
+
+	/* Try slot 1 */
+	config.slot         = 1;
+	config.sdhc_base    = mmc_sdhci_base[config.slot - 1];
+	config.pwrctl_base  = mmc_pwrctl_base[config.slot - 1];
+	config.pwr_irq      = mmc_sdc_pwrctl_irq[config.slot - 1];
+	config.hs400_support = 0;
+	config.hs200_support = 0;
+	config.ddr_support = 0;
+
+	if (!(mmc_dev = mmc_init(&config))) {
+		dprintf(CRITICAL, "mmc init failed!");
+		ASSERT(0);
+	}
+}
+
+void *target_mmc_device()
+{
+	return (void *) mmc_dev;
+}
+
+void target_mmc_deinit()
+{
+	sdhci_mode_disable(&(mmc_dev->host));
+}
 
 void target_init(void)
 {
@@ -95,11 +144,10 @@ void target_init(void)
 	dprintf(INFO, "board platform id is 0x%x\n",  platform_id);
 	dprintf(INFO, "board platform verson is 0x%x\n",  board_platform_ver());
 
-	/* Need to initialize before splash screen init if splash is being read from emmc*/
-	/* Trying Slot 1 first */
-	slot = 1;
-	if (mmc_boot_main(slot, MSM_SDC1_BASE)) {
-		dprintf(CRITICAL, "mmc init failed!");
+	target_sdc_init();
+	if (partition_read_table())
+	{
+		dprintf(CRITICAL, "Error reading the partition table info\n");
 		ASSERT(0);
 	}
 }

@@ -40,12 +40,16 @@
 #define GIC_SPI_START 32
 
 #define INT_QTMR_FRM_0_PHYSICAL_TIMER_EXP      (GIC_SPI_START + 8)
+#define INT_QTMR_NON_SECURE_PHY_TIMER_EXP	(GIC_PPI_START + 3)
 
 #define USB1_HS_BAM_IRQ         (GIC_SPI_START + 94)
 #define USB1_HS_IRQ             (GIC_SPI_START + 100)
 #define USB30_EE1_IRQ		(GIC_SPI_START + 132)
 #define USB2_IRQ                (GIC_SPI_START + 141)
 #define USB1_IRQ                (GIC_SPI_START + 142)
+#define SDCC1_PWRCTL_IRQ	(GIC_SPI_START + 138)
+#define SDCC2_PWRCTL_IRQ	(GIC_SPI_START + 221)
+
 
 #define GSBI_QUP_IRQ(id)       ((id) <= 8 ? (GIC_SPI_START + 145 + 2*((id))) : \
                                             (GIC_SPI_START + 187 + 2*((id)-8)))

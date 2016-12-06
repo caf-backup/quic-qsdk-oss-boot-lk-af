@@ -36,6 +36,7 @@
 #include <clock.h>
 #include <board.h>
 #include <smem.h>
+#include <mmc_sdhci.h>
 
 /* Set rate and enable the clock */
 static void clock_config(uint32_t ns, uint32_t md, uint32_t ns_addr, uint32_t md_addr)
@@ -172,6 +173,17 @@ void clock_config_mmc(uint32_t interface, uint32_t freq)
 		writel(0x1, GCC_SDCC1_APPS_CBCR);
 		udelay(10);
 		break;
+	case MMC_CLK_200MHZ:
+		/* Set root clock generator to bypass mode */
+		writel(0x0, GCC_SDCC1_APPS_CBCR);
+		udelay(10);
+		/* Choose divider for 48MHz */
+		writel(0x0, GCC_SDCC1_MISC);
+		/* Enable root clock generator */
+		writel(0x1, GCC_SDCC1_APPS_CBCR);
+		udelay(10);
+		break;
+
 	default:
 		ASSERT(0);
 		return;

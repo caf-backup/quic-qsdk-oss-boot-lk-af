@@ -77,6 +77,10 @@ int scm_call_atomic1(uint32_t svc, uint32_t cmd, uint32_t arg1);
 int scm_call_atomic2(uint32_t svc, uint32_t cmd, uint32_t arg1, uint32_t arg2);
 
 #define SCM_SVC_FUSE                0x08
+#define FUSEPROV_SUCCESS		0x0
+#define FUSEPROV_INVALID_HASH		0x09
+#define FUSEPROV_SECDAT_LOCK_BLOWN	0xB
+#define TZ_BLOW_FUSE_SECDAT		0x20
 #define SCM_BLOW_SW_FUSE_ID         0x01
 #define SCM_IS_SW_FUSE_BLOWN_ID     0x02
 
@@ -96,7 +100,7 @@ AP_CE_ADM_USE = 1
 
 uint8_t switch_ce_chn_cmd(enum ap_ce_channel_type channel);
 
-
+int fuseipq(uint32_t address);
 void set_tamper_fuse_cmd();
 
 /**
