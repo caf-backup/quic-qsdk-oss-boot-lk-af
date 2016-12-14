@@ -29,10 +29,10 @@
 #include <board.h>
 #include <target/board.h>
 #include <partition_parser.h>
+#include <stdlib.h>
+#include <libfdt.h>
 
 board_ipq40xx_params_t *gboard_param;
-
-void ipq_configure_gpio(gpio_func_data_t *gpio, uint count);
 
 gpio_func_data_t mmc_ap_dk07[] = {
 	{

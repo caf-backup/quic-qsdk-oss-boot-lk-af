@@ -198,4 +198,5 @@ struct msm_fb_panel_data {
 
 
 int msm_display_init(struct msm_fb_panel_data *pdata);
+void display_image_on_screen(struct msm_panel_info *pinfo);
 #endif

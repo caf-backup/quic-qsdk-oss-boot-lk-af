@@ -491,6 +491,7 @@ struct smem_ptable {
 
 unsigned smem_read_alloc_entry_offset(smem_mem_type_t type, void *buf, int len, int offset);
 int smem_ram_ptable_init(struct smem_ram_ptable *smem_ram_ptable);
+int smem_ram_ptable_init_v1(struct smem_ram_ptable_v1 *smem_ram_ptable);
 
 struct smem_machid_info {
 	unsigned format;
