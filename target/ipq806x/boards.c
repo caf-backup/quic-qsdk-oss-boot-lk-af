@@ -29,6 +29,8 @@
 #include <board.h>
 #include <target/board.h>
 #include <partition_parser.h>
+#include <stdlib.h>
+#include <libfdt.h>
 
 board_ipq806x_params_t *gboard_param;
 
@@ -46,7 +48,6 @@ static inline int gmac_cfg_is_valid(ipq_gmac_board_cfg_t *cfg)
 }
 
 unsigned int get_board_index(unsigned int machid);
-void ipq_configure_gpio(gpio_func_data_t *gpio, uint count);
 
 #define MSM_SDC1_BASE      0x12400000
 

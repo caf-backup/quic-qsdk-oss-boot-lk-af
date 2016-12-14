@@ -41,6 +41,7 @@
 #include <dev/udc.h>
 #include <platform/iomap.h>
 #include <usb30_dwc.h>
+#include <usb30_dwc_hw.h>
 #include <usb30_wrapper.h>
 #include <usb30_udc.h>
 #include <smem.h>
@@ -616,7 +617,7 @@ static int udc_handle_setup(void *context, uint8_t *data)
 			 * |______|_____________|_____________|
 			 */
 			usb_epnum = (s.index & USB_EP_NUM_MASK);
-			dir = (s.index & USB_EP_DIR_MASK == USB_EP_DIR_IN) ? 0x1 : 0x0;
+			dir = ((s.index & USB_EP_DIR_MASK) == USB_EP_DIR_IN) ? 0x1 : 0x0;
 
 			/*
 			 * Convert the logical ep number to physical before

@@ -55,6 +55,9 @@ unsigned target_pause_for_battery_charge(void);
 unsigned target_baseband(void);
 void target_serialno(unsigned char *buf);
 void target_fastboot_init(void);
+void target_usb_init(void);
+void target_usb_stop(void);
+target_usb_iface_t *target_usb30_init();
 const char *target_usb_controller(void);
 
 #endif

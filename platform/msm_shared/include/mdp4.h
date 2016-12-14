@@ -115,6 +115,10 @@ int mdp_setup_dma_p_video_mode(unsigned short disp_width,
 				unsigned char ystride);
 int mipi_dsi_cmd_config(struct fbcon_config mipi_fb_cfg,
 			unsigned short num_of_lanes);
+int mdp_dsi_cmd_config(struct msm_panel_info *pinfo,
+			struct fbcon_config *fb);
+int mdp_dsi_cmd_off();
+int mdp_dma_on(void);
 void mdp_shutdown(void);
 void mdp_disable(void);
 void mdp_start_dma(void);

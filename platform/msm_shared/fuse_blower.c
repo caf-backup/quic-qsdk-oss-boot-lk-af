@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <scm.h>
+#include <stdio.h>
 
 int fuseipq(uint32_t address)
 {

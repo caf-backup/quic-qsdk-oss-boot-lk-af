@@ -22,6 +22,8 @@
 #include <target/board.h>
 #include <reg.h>
 #include <debug.h>
+#include <platform.h>
+#include <platform/timer.h>
 
 /* MII address register definitions */
 #define MII_DATA_REG_ADDR			(0x14)
