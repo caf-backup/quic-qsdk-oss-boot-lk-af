@@ -28,6 +28,12 @@
 #include <certificate.h>
 #include <crypto_hash.h>
 #include "image_verify.h"
+#include <openssl/err.h>
+#include <string.h>
+#include <sys/types.h>
+
+void hash_find(unsigned char *addr, unsigned int size,
+               unsigned char *digest, unsigned char auth_alg);
 
 /*
  * Returns -1 if decryption failed otherwise size of plain_text in bytes
@@ -40,7 +46,7 @@ image_decrypt_signature(unsigned char *signature_ptr, unsigned char *plain_text)
 	 */
 	int ret = -1;
 	X509 *x509_certificate = NULL;
-	unsigned char *cert_ptr = certBuffer;
+	const unsigned char *cert_ptr = (unsigned char *)certBuffer;
 	unsigned int cert_size = sizeof(certBuffer);
 	EVP_PKEY *pub_key = NULL;
 	RSA *rsa_key = NULL;
@@ -113,7 +119,7 @@ image_verify(unsigned char *image_ptr,
 	 * we avoid a potential vulnerability due to trailing data placed at the end of digest.
 	 */
 	ret = image_decrypt_signature(signature_ptr, plain_text);
-	if (ret != hash_size) {
+	if (ret != (int)hash_size) {
 		dprintf(CRITICAL, "ERROR: Image Invalid! signature check failed! ret %d\n", ret);
 		goto cleanup;
 	}

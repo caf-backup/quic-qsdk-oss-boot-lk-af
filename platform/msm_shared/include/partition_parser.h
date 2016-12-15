@@ -147,6 +147,9 @@ struct partition_entry {
 	unsigned char name[MAX_GPT_NAME_SIZE];
 };
 
+struct mmc_boot_host *tmmc_host;
+struct mmc_boot_card *tmmc_card;
+
 static void mbr_fill_name(struct partition_entry *partition_ent,
 			  unsigned int type);
 unsigned int mmc_boot_read_gpt(struct mmc_boot_host *mmc_host,

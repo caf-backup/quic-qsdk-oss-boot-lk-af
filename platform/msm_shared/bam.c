@@ -35,6 +35,7 @@
 #include <platform/iomap.h>
 #include <platform/irqs.h>
 #include <pow2.h>
+#include <arch/ops.h>
 
 #define HLOS_EE_INDEX          0
 
