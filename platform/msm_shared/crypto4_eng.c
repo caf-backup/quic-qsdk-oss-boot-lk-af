@@ -36,6 +36,7 @@
 #include <crypto_hash.h>
 #include <scm.h>
 #include <smem.h>
+#include <board.h>
 
 extern void dsb(void);
 extern void ce_async_reset();
@@ -218,7 +219,7 @@ crypto_send_data(void *ctx_ptr, unsigned char *data_ptr,
 		       buff_ptr,
 		       (((buff_size + sha1_ctx->saved_buff_indx) <=
 			 CRYPTO_SHA_BLOCK_SIZE)
-			? buff_size : (CRYPTO_SHA_BLOCK_SIZE -
+			? buff_size : ((unsigned)CRYPTO_SHA_BLOCK_SIZE -
 				       sha1_ctx->saved_buff_indx)));
 
 		if (bytes_to_write >= CRYPTO_SHA_BLOCK_SIZE) {

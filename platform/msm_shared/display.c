@@ -32,6 +32,15 @@
 #include <mdp4.h>
 #include <mipi_dsi.h>
 #include <stdlib.h>
+#include <platform/iomap.h>
+
+int mdp_dsi_cmd_config(struct msm_panel_info *pinfo,
+                       struct fbcon_config *fb);
+int mdp_dma_on();
+int mipi_cmd_trigger();
+void display_image_on_screen(struct msm_panel_info *pinfo);
+int mdp_dsi_cmd_off(void);
+
 
 #ifndef DISPLAY_TYPE_HDMI
 static int hdmi_dtv_init(void)
@@ -60,7 +69,7 @@ static int msm_fb_alloc(struct fbcon_config *fb)
 		return ERROR;
 
 	if (fb->base == NULL)
-		fb->base = memalign(4096, fb->width
+		fb->base = (int *)memalign(4096, fb->width
 							* fb->height
 							* (fb->bpp / 8));
 
