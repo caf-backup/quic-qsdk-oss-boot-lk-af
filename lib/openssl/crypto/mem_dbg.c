@@ -664,6 +664,8 @@ typedef struct mem_leak_st
 	} MEM_LEAK;
 
 #ifndef LK_NO_TIME
+static void print_leak_doall_arg(const MEM *m, MEM_LEAK *l);
+
 static void print_leak_doall_arg(const MEM *m, MEM_LEAK *l)
 	{
 	char buf[1024];
