@@ -62,6 +62,7 @@
 #include <openssl/conf.h>
 #include <openssl/conf_api.h>
 #include <openssl/lhash.h>
+#include <openssl/bio.h>
 
 const char CONF_version[]="CONF" OPENSSL_VERSION_PTEXT;
 

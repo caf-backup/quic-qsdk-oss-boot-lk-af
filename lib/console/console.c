@@ -85,8 +85,6 @@ static int read_line(char *buffer, int len)
 		if (getc(&c) < 0)
 			continue;
 
-//		printf("c = 0x%hhx\n", c); 
-		
 		if (escape_level == 0) {
 			switch (c) {
 				case '\r':
@@ -153,8 +151,6 @@ static int read_line(char *buffer, int len)
 	}
 
 done:
-//	printf("returning pos %d\n", pos);
-
 	buffer[pos] = 0;
 	return pos;
 }
@@ -180,8 +176,6 @@ static int tokenize_command(char *buffer, cmd_args *args, int arg_count)
 
 		if (c == '\0')
 			finished = true;
-
-//		printf("c 0x%hhx state %d arg %d pos %d\n", c, state, arg, pos);
 
 		switch (state) {
 			case INITIAL:
@@ -247,8 +241,6 @@ static void console_loop(void)
 		if (len == 0)
 			continue;
 
-//		printf("line = '%s'\n", buffer);
-
 		/* tokenize the line */
 		int argc = tokenize_command(buffer, args, 16);
 		if (argc < 0) {
@@ -257,10 +249,6 @@ static void console_loop(void)
 		} else if (argc == 0) {
 			continue;
 		}
-
-//		printf("after tokenize: argc %d\n", argc);
-//		for (int i = 0; i < argc; i++)
-//			printf("%d: '%s'\n", i, args[i].str);
 
 		/* convert the args */
 		convert_args(argc, args);
@@ -271,10 +259,6 @@ static void console_loop(void)
 			printf("command not found\n");
 			continue;
 		}
-
-		int result = command->cmd_callback(argc, args);
-
-		// XXX do something with the result
 	}
 }
 

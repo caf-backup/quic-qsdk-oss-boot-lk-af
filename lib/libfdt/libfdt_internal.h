@@ -64,7 +64,9 @@
 
 int _fdt_check_node_offset(const void *fdt, int offset);
 int _fdt_check_prop_offset(const void *fdt, int offset);
-const char *_fdt_find_string(const char *strtab, int tabsize, const char *s);
+const char *_fdt_find_string(const char *strtab,
+			     unsigned int tabsize,
+			     const char *s);
 int _fdt_node_end_offset(void *fdt, int nodeoffset);
 
 static inline const void *_fdt_offset_ptr(const void *fdt, int offset)

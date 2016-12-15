@@ -61,6 +61,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "cryptlib.h"
+#include <openssl/bio.h>
 #include <openssl/stack.h>
 #include <openssl/lhash.h>
 #include <openssl/conf.h>
@@ -213,13 +214,13 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
 	int bufnum=0,i,ii;
 	BUF_MEM *buff=NULL;
 	char *s,*p,*end;
-	int again,n;
+	int again;
 	long eline=0;
 	char btmp[DECIMAL_SIZE(eline)+1];
 	CONF_VALUE *v=NULL,*tv;
 	CONF_VALUE *sv=NULL;
 	char *section=NULL,*buf;
-	STACK_OF(CONF_VALUE) *section_sk=NULL,*ts;
+	STACK_OF(CONF_VALUE) *section_sk=NULL;
 	char *start,*psection,*pname;
 	void *h = (void *)(conf->data);
 
@@ -309,7 +310,6 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
 		buf=buff->data;
 
 		clear_comments(conf, buf);
-		n=strlen(buf);
 		s=eat_ws(conf, buf);
 		if (IS_EOF(conf,*s)) continue; /* blank line */
 		if (*s == '[')
@@ -406,12 +406,10 @@ again:
 					   CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
 					goto err;
 					}
-				ts=(STACK_OF(CONF_VALUE) *)tv->value;
 				}
 			else
 				{
 				tv=sv;
-				ts=section_sk;
 				}
 #if 1
 			if (_CONF_add_string(conf, tv, v) == 0)
@@ -465,9 +463,6 @@ err:
 
 static void clear_comments(CONF *conf, char *p)
 	{
-	char *to;
-
-	to=p;
 	for (;;)
 		{
 		if (IS_FCOMMENT(conf,*p))
