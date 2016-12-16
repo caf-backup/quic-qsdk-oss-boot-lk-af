@@ -26,6 +26,7 @@
 #include <arch.h>
 #include <arch/arm.h>
 #include <arch/arm/mmu.h>
+#include <platform.h>
 
 #if ARM_WITH_MMU
 

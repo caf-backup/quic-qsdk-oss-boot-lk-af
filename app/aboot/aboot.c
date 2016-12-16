@@ -48,6 +48,7 @@
 #include <partition_parser.h>
 #include <platform.h>
 #include <crypto_hash.h>
+#include <malloc.h>
 
 #if DEVICE_TREE
 #include <libfdt.h>
@@ -65,6 +66,13 @@
 #include "scm.h"
 
 #define critical(...)	dprintf(CRITICAL, __VA_ARGS__)
+
+void dsb(void);
+void platform_uninit(void);
+void write_device_info_mmc(device_info *dev);
+void write_device_info_flash(device_info *dev);
+uint32_t* target_dev_tree_mem(uint32_t * num_of_entries);
+void update_mac_addrs(void *fdt);
 
 /* fastboot command function pointer */
 typedef void (*fastboot_cmd_fn) (const char *, void *, unsigned);
@@ -99,7 +107,7 @@ struct fastboot_cmd_desc {
 
 #if DEVICE_TREE
 #define DEV_TREE_SUCCESS        0
-#define DEV_TREE_MAGIC          "QCDT"
+#define DEV_TREE_MAGIC          'QCDT'
 #define DEV_TREE_VERSION        3
 #define DEV_TREE_HEADER_SIZE    12
 
@@ -388,7 +396,7 @@ unsigned char *update_cmdline(const char * cmdline)
 #endif
 	if (cmdline_len > 0) {
 		const char *src;
-		char *dst = malloc((cmdline_len + 4) & (~3));
+		unsigned char *dst = malloc((cmdline_len + 4) & (~3));
 		if (!dst) {
 			dprintf(CRITICAL, "%s:malloc failed for cmdline\n",
 				__func__);
@@ -603,7 +611,7 @@ void boot_linux(void *kernel, unsigned *tags,
 	void (*entry)(unsigned, unsigned, unsigned*) = (entry_func_ptr*)(PA((addr_t)kernel));
 	uint32_t tags_phys = PA((addr_t)tags);
 
-	ramdisk = PA(ramdisk);
+	ramdisk = (void *)PA((addr_t)ramdisk);
 
 	final_cmdline = update_cmdline((const char*)cmdline);
 
@@ -611,7 +619,7 @@ void boot_linux(void *kernel, unsigned *tags,
 	dprintf(INFO, "Updating device tree: start\n");
 
 	/* Update the Device Tree */
-	ret = update_device_tree((void *)tags, final_cmdline, ramdisk, ramdisk_size);
+	ret = update_device_tree((void *)tags, (char *)final_cmdline, ramdisk, ramdisk_size);
 	if(ret)
 	{
 		dprintf(CRITICAL, "ERROR: Updating Device Tree Failed \n");
@@ -759,7 +767,7 @@ int read_kernel(unsigned long long off, struct boot_img_hdr *hdr,
 	unsigned char *tmp = in ? in : (void *)SCRATCH_ADDR;
 	unsigned char *dst = (void *)hdr->kernel_addr;
 
-	if (!in && mmc_read(off, tmp, page_size)) {
+	if (!in && mmc_read(off, (unsigned int *)tmp, page_size)) {
 		critical("ERROR: Cannot read kernel image (1)\n");
 		return -1;
 	}
@@ -767,14 +775,14 @@ int read_kernel(unsigned long long off, struct boot_img_hdr *hdr,
 	if (!is_gzip_package(tmp, len)) {
 		if (in) {
 			memmove((void*)hdr->kernel_addr, in, len);
-		} else if (mmc_read(off, dst, len)) {
+		} else if (mmc_read(off, (unsigned int *)dst, len)) {
 			critical("ERROR: Cannot read kernel image (2)\n");
 			return -1;
 		}
 		return 0;
 	}
 
-	if (!in && mmc_read(off, tmp, len)) {
+	if (!in && mmc_read(off, (unsigned int *)tmp, len)) {
 		critical("ERROR: Cannot read kernel image (3)\n");
 		return -1;
 	}
@@ -914,7 +922,7 @@ int boot_linux_from_mmc(void)
 
 		dprintf(INFO, "Loading boot image (%d): start\n", imagesize_actual);
 
-		if (check_aboot_addr_range_overlap(image_addr, imagesize_actual))
+		if (check_aboot_addr_range_overlap((uint32_t)image_addr, imagesize_actual))
 		{
 			dprintf(CRITICAL, "Boot image buffer address overlaps with aboot addresses.\n");
 			return -1;
@@ -931,7 +939,7 @@ int boot_linux_from_mmc(void)
 
 		offset = imagesize_actual;
 
-		if (check_aboot_addr_range_overlap(image_addr + offset, page_size))
+		if (check_aboot_addr_range_overlap((uint32_t)(image_addr + offset), page_size))
 		{
 			dprintf(CRITICAL, "Signature read buffer address overlaps with aboot addresses.\n");
 			return -1;
@@ -944,7 +952,7 @@ int boot_linux_from_mmc(void)
 			return -1;
 		}
 
-		verify_signed_bootimg(image_addr, imagesize_actual);
+		verify_signed_bootimg((uint32_t)image_addr, imagesize_actual);
 
 		/* Move kernel, ramdisk and device tree to correct address */
 		if (read_kernel(0ull, hdr, (char *)(image_addr + page_size), hdr->kernel_size))
@@ -955,7 +963,7 @@ int boot_linux_from_mmc(void)
 		#if DEVICE_TREE
 		if(hdr->dt_size) {
 			table = (struct dt_table*) dt_buf;
-			dt_table_offset = (image_addr + page_size + kernel_actual + ramdisk_actual + second_actual);
+			dt_table_offset = (unsigned)(image_addr + page_size + kernel_actual + ramdisk_actual + second_actual);
 
 			memmove((void *) dt_buf, (char *)dt_table_offset, page_size);
 
@@ -1218,7 +1226,7 @@ int boot_linux_from_flash(void)
 			return -1;
 		}
 
-		verify_signed_bootimg(image_addr, imagesize_actual);
+		verify_signed_bootimg((uint32_t)image_addr, imagesize_actual);
 
 		/* Move kernel and ramdisk to correct address */
 		if (read_kernel(0ull, hdr, (char *)(image_addr + page_size), hdr->kernel_size))
@@ -1256,7 +1264,7 @@ int boot_linux_from_flash(void)
 		dprintf(INFO, "Loading boot image (%d): start\n",
 				kernel_actual + ramdisk_actual);
 
-		if (read_kernel(ptn + offset, hdr, NULL, kernel_actual)) {
+		if (read_kernel((unsigned long)(ptn + offset), hdr, NULL, kernel_actual)) {
 			dprintf(CRITICAL, "ERROR: Cannot read kernel image\n");
 			return -1;
 		}
@@ -1511,7 +1519,6 @@ int copy_dtb(uint8_t *boot_image_start)
 	uint32_t n;
 	struct dt_table *table;
 	void *dt_entry_ptr;
-	unsigned dt_table_offset;
 
 	struct boot_img_hdr *hdr = (struct boot_img_hdr *) (boot_image_start);
 
@@ -1534,7 +1541,7 @@ int copy_dtb(uint8_t *boot_image_start)
 		}
 
 		/* offset now point to start of dt.img */
-		table = boot_image_start + dt_image_offset;
+		table = (struct dt_table *)(boot_image_start + dt_image_offset);
 
 		/* Restriction that the device tree entry table should be less than a page*/
 		if (((table->num_entries * sizeof_dt_entry(table))+ DEV_TREE_HEADER_SIZE) >= hdr->page_size) {
@@ -2319,7 +2326,7 @@ int update_device_tree(const void * fdt, char *cmdline,
 	}
 
 	/* Add padding to make space for new nodes and properties. */
-	ret = fdt_open_into(fdt, fdt, fdt_totalsize(fdt) + DTB_PAD_SIZE);
+	ret = fdt_open_into(fdt, (void*)fdt, fdt_totalsize(fdt) + DTB_PAD_SIZE);
 	if (ret!= 0)
 	{
 		dprintf(CRITICAL, "Failed to move/resize dtb buffer: %d\n", ret);
@@ -2336,7 +2343,7 @@ int update_device_tree(const void * fdt, char *cmdline,
 	}
 
 	/* Adding the memory values to the reg property */
-	ret = fdt_setprop(fdt, offset, "reg", memory_reg, sizeof(uint32_t) * len * 2);
+	ret = fdt_setprop((void *)fdt, offset, "reg", memory_reg, sizeof(uint32_t) * len * 2);
 	if(ret)
 	{
 		dprintf(CRITICAL, "ERROR: Cannot update memory node\n");
@@ -2352,26 +2359,26 @@ int update_device_tree(const void * fdt, char *cmdline,
 	}
 
 	/* Adding the cmdline to the chosen node */
-	final_cmdline = update_cmdline(cmdline);
+	final_cmdline = update_cmdline((const char*)cmdline);
 	if(!final_cmdline) {
 		dprintf(CRITICAL, "ERROR: %s:update_cmdline failed\n",__func__);
 		return -1;
 	}
 
-	ret = fdt_setprop_string(fdt, offset, "bootargs", final_cmdline);
+	ret = fdt_setprop_string((void*)fdt, offset, "bootargs", (const char*)final_cmdline);
 	if(ret)
 	{
 		dprintf(CRITICAL, "ERROR: Cannot update chosen node [bootargs]\n");
 		return ret;
 	}
 
-	update_mac_addrs(fdt);
+	update_mac_addrs((void*)fdt);
 
 	if (!ramdisk || ramdisk_size == 0)
 		goto no_initrd;
 
 	/* Adding the initrd-start to the chosen node */
-	ret = fdt_setprop_cell(fdt, offset, "linux,initrd-start", ramdisk);
+	ret = fdt_setprop_cell((void*)fdt, offset, "linux,initrd-start", (uint32_t)ramdisk);
 	if(ret)
 	{
 		dprintf(CRITICAL, "ERROR: Cannot update chosen node [linux,initrd-start]\n");
@@ -2379,7 +2386,7 @@ int update_device_tree(const void * fdt, char *cmdline,
 	}
 
 	/* Adding the initrd-end to the chosen node */
-	ret = fdt_setprop_cell(fdt, offset, "linux,initrd-end", (ramdisk + ramdisk_size));
+	ret = fdt_setprop_cell((void*)fdt, offset, "linux,initrd-end", (uint32_t)(ramdisk + ramdisk_size));
 	if(ret)
 	{
 		dprintf(CRITICAL, "ERROR: Cannot update chosen node [linux,initrd-end]\n");
@@ -2387,7 +2394,7 @@ int update_device_tree(const void * fdt, char *cmdline,
 	}
 
 no_initrd:
-	fdt_pack(fdt);
+	fdt_pack((void*)fdt);
 
 	return ret;
 }
