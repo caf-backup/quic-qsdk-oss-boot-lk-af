@@ -264,7 +264,8 @@ static enum handler_return timer_tick(void *arg, time_t now)
 #endif
 
 	// XXX fix this, should return ret
-	return INT_RESCHEDULE;
+	ret = INT_RESCHEDULE;
+	return ret;
 }
 
 void timer_init(void)
