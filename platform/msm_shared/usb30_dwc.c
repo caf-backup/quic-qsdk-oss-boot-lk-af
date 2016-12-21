@@ -48,7 +48,7 @@
 #include <usb30_dwc_hw.h>
 #include <usb30_dwc_hwio.h>
 
-//#define DEBUG_USB
+//define DEBUG_USB
 
 #ifdef DEBUG_USB
 #define DBG(...) dprintf(ALWAYS, __VA_ARGS__)
@@ -869,8 +869,10 @@ static void dwc_event_handler_ep_ctrl_state_wait_for_host_2(dwc_dev_t *dev,
 	{
 	case DWC_EVENT_EP_CMD_COMPLETE:
 	{
+#ifdef DEBUG_USB
 		dwc_dep_cmd_id_t cmd = DWC_EVENT_EP_EVENT_CMD_TYPE(*event);
 		DBG("\n cmd = %s has no action. ignored.", cmd_lookup[cmd]);
+#endif
 	}
 		break;
 	case DWC_EVENT_EP_XFER_NOT_READY:
@@ -931,8 +933,10 @@ static void dwc_event_handler_ep_ctrl_state_wait_for_host_3(dwc_dev_t *dev,
 	{
 	case DWC_EVENT_EP_CMD_COMPLETE:
 	{
+#ifdef DEBUG_USB
 		dwc_dep_cmd_id_t cmd = DWC_EVENT_EP_EVENT_CMD_TYPE(*event);
 		DBG("\n cmd = %s has no action. ignored.", cmd_lookup[cmd]);
+#endif
 	}
 		break;
 	case DWC_EVENT_EP_XFER_NOT_READY:

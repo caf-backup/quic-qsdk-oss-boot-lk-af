@@ -172,4 +172,5 @@ typedef struct {
 extern board_ipq40xx_params_t *gboard_param;
 
 board_ipq40xx_params_t *get_board_param(unsigned int machid);
+void ipq_configure_gpio(gpio_func_data_t *gpio, int count);
 #endif

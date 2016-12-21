@@ -33,6 +33,7 @@ void dwc_ep_cmd_end_transfer(dwc_dev_t *dev, uint8_t ep_phy_num);
 void dwc_ep_cmd_set_config(dwc_dev_t *dev, uint8_t index, uint8_t action);
 void dwc_ep_cmd_set_transfer_resource(dwc_dev_t *dev, uint8_t index);
 void dwc_ep_cmd_stall(dwc_dev_t *dev, uint8_t ep_phy_num);
+void dwc_ep_cmd_clear_stall(dwc_dev_t *dev, uint8_t ep_phy_num);
 void dwc_ep_cmd_start_new_config(dwc_dev_t *dev,
 								 uint8_t ep_phy_num,
 								 uint8_t resource_idx);

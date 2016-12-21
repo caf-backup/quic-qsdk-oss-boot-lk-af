@@ -105,7 +105,7 @@ void target_init(void)
 	unsigned char slot;
 	unsigned platform_id = board_platform_id();
 	gpio_func_data_t *gmac_gpio;
-	int i;
+	unsigned int i;
 
 	dprintf(INFO, "target_init()\n");
 	dprintf(INFO, "board platform id is 0x%x\n",  platform_id);

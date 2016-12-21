@@ -31,6 +31,7 @@
 #include <msm_panel.h>
 #include <mdp4.h>
 #include <mipi_dsi.h>
+#include <stdlib.h>
 
 #ifndef DISPLAY_TYPE_HDMI
 static int hdmi_dtv_init(void)
