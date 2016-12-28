@@ -39,6 +39,7 @@
 #include <sdhci.h>
 #include <sdhci_msm.h>
 #include <mmc_sdhci.h>
+#include <mmc.h>
 #include <mmc_wrapper.h>
 
 /* Known data stored in the card & read during tuning
