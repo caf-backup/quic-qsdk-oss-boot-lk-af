@@ -52,6 +52,7 @@
 #include <sdhci_msm.h>
 #include <stdlib.h>
 #include <mmc_wrapper.h>
+#include <partition_parser.h>
 
 #define APPS_DLOAD_MAGIC			0x10
 #define CLEAR_MAGIC				0x0
@@ -141,13 +142,15 @@ void target_mmc_deinit()
 void target_init(void)
 {
 	unsigned platform_id = board_platform_id();
+	struct mmc_boot_host *mmc_host = get_mmc_host();
+	struct mmc_card *mmc_card = get_mmc_card();
 
 	dprintf(INFO, "target_init()\n");
 	dprintf(INFO, "board platform id is 0x%x\n",  platform_id);
 	dprintf(INFO, "board platform verson is 0x%x\n",  board_platform_ver());
 
 	target_sdc_init();
-	if (partition_read_table())
+	if (partition_read_table(mmc_host, (struct mmc_boot_card *)mmc_card))
 	{
 		dprintf(CRITICAL, "Error reading the partition table info\n");
 		ASSERT(0);

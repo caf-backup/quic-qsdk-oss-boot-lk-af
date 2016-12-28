@@ -34,6 +34,7 @@
 #define BOARD_KERNEL_PAGESIZE                2048
 /* Wrapper APIs */
 
+#ifdef  MMC_SDHCI_SUPPORT
 struct mmc_device *get_mmc_device();
 uint32_t mmc_get_psn(void);
 
@@ -51,4 +52,11 @@ void  mmc_read_partition_table(uint8_t arg);
 void clock_config_cdc(uint8_t slot);
 void mmc_boot_mci_clk_enable();
 void mmc_boot_mci_clk_disable();
+unsigned int mmc_boot_read_from_card(struct mmc_boot_host *host,
+			struct mmc_boot_card *card,
+			unsigned long long data_addr,
+			unsigned int data_len, unsigned int *out);
+struct mmc_boot_host *get_mmc_host(void);
+struct mmc_card *get_mmc_card(void);
+#endif
 #endif

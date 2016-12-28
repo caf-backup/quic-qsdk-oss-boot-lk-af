@@ -30,6 +30,7 @@
 #include <string.h>
 #include <crc32.h>
 #include "mmc.h"
+#include "mmc_wrapper.h"
 #include "partition_parser.h"
 
 #define GPT_HEADER_SIZE 92
