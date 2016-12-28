@@ -29,9 +29,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <debug.h>
+#include <bits.h>
 #include <reg.h>
+#include <target.h>
 #include <arch/ops.h>
 #include "mmc.h"
+#include <platform/clock.h>
 #include <partition_parser.h>
 #include <platform/iomap.h>
 #include <platform/timer.h>
@@ -1818,7 +1821,6 @@ mmc_boot_read_from_card(struct mmc_boot_host *host,
  */
 unsigned int mmc_boot_init(struct mmc_boot_host *host)
 {
-	unsigned int mmc_ret = MMC_BOOT_E_SUCCESS;
 	unsigned int mmc_pwr = 0;
 
 	host->ocr = MMC_BOOT_OCR_27_36 | MMC_BOOT_OCR_SEC_MODE;
@@ -2641,8 +2643,7 @@ mmc_wp(unsigned int sector, unsigned int size, unsigned char set_clear_wp)
 
 void mmc_wp_test(void)
 {
-	unsigned int mmc_ret = 0;
-	mmc_ret = mmc_wp(0xE06000, 0x5000, 1);
+	mmc_wp(0xE06000, 0x5000, 1);
 }
 
 unsigned mmc_get_psn(void)
@@ -2781,7 +2782,7 @@ mmc_boot_fifo_write(unsigned int *mmc_ptr, unsigned int data_len)
 			sz = ((count >> 2) >  MMC_BOOT_MCI_HFIFO_COUNT) \
 				 ? MMC_BOOT_MCI_HFIFO_COUNT : (count >> 2);
 
-			for (int i = 0; i < sz; i++) {
+			for (unsigned int i = 0; i < sz; i++) {
 				writel(*mmc_ptr, MMC_BOOT_MCI_FIFO);
 				mmc_ptr++;
 				/* increase mmc_count by word size */
@@ -2915,7 +2916,7 @@ static unsigned int mmc_boot_send_erase(struct mmc_boot_card *card)
 	/* Checking for write protect */
 	if (cmd.resp[0] & MMC_BOOT_R1_WP_ERASE_SKIP) {
 		dprintf(CRITICAL, "Write protect enabled for sector \n");
-		return;
+		return MMC_BOOT_E_FAILURE;
 	}
 
 	/* Checking if the erase operation for the card is compelete */
@@ -3288,8 +3289,6 @@ static int mmc_bam_transfer_data(unsigned int *data_ptr,
 		dprintf(SPEW, "Offset value is %d \n", offset);
 	}
 
-mmc_bam_transfer_err:
-
 	return mmc_ret;
 }
 
@@ -3351,7 +3350,7 @@ static int cmd_mmc(int argc, const cmd_args *argv)
 	if (!strcmp(argv[1].str, "bread") ||
 	    !strcmp(argv[1].str, "bwrite") ||
 	    !strcmp(argv[1].str, "berase")) {
-		strcpy(argv[1].str, argv[1].str + 1);
+		strcpy((char *)argv[1].str, argv[1].str + 1);
 		m = 1;
 	}
 

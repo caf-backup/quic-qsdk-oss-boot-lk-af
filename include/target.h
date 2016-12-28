@@ -59,5 +59,6 @@ void target_usb_init(void);
 void target_usb_stop(void);
 target_usb_iface_t *target_usb30_init();
 const char *target_usb_controller(void);
-
+void *target_mmc_device(void);
+int target_mmc_bus_width(void);
 #endif
