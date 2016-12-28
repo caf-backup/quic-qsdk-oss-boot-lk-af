@@ -51,6 +51,7 @@
 #include <mmc_sdhci.h>
 #include <sdhci_msm.h>
 #include <stdlib.h>
+#include <mmc_wrapper.h>
 
 #define APPS_DLOAD_MAGIC			0x10
 #define CLEAR_MAGIC				0x0

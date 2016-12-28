@@ -1444,13 +1444,13 @@ void update_mac_addrs(void *fdt)
 		critical("Could not allocate sufficient memory to read MAC information\n");
 		return;
 	}
-	if (mmc_read(off, mac, BLOCK_SIZE)) {
+	if (mmc_read(off, (unsigned int *)mac, BLOCK_SIZE)) {
 		critical("Could not read ART partition\n");
 		return;
 	}
 
 	for (i = j = 0; i < IPQ_GMAC_COUNT; i++) {
-		char *p = &mac[j * 6];
+		unsigned char *p = &mac[j * 6];
 
 		sprintf(eth, "ethernet%d", i);
 

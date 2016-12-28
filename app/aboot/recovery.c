@@ -44,6 +44,10 @@
 #include "bootimg.h"
 #include "smem.h"
 
+#ifdef MMC_SDHCI_SUPPORT
+#include <mmc_wrapper.h>
+#endif
+
 #define BOOT_FLAGS	1
 #define UPDATE_STATUS	2
 #define ROUND_TO_PAGE(x,y) (((x) + (y)) & (~(y)))
