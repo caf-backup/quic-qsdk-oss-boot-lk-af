@@ -679,9 +679,9 @@ extern char *sys_errlist[]; extern int sys_nerr;
 #define IRIX_CC_BUG	/* CDS++ up to V2.0Bsomething suffered from the same bug.*/
 #endif
 
-#if defined(OPENSSL_SYS_WINDOWS)
-#  define strcasecmp _stricmp
-#  define strncasecmp _strnicmp
+#if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_LK)
+#  define strcasecmp strcmp
+#  define strncasecmp strnicmp
 #elif defined(OPENSSL_SYS_VMS)
 /* VMS below version 7.0 doesn't have strcasecmp() */
 #  include "o_str.h"

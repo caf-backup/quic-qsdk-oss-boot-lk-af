@@ -61,7 +61,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "cryptlib.h"
-#include <openssl/bio.h>
+#include <bio.h>
 #include <openssl/stack.h>
 #include <openssl/lhash.h>
 #include <openssl/conf.h>
@@ -220,7 +220,6 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
 	CONF_VALUE *v=NULL,*tv;
 	CONF_VALUE *sv=NULL;
 	char *section=NULL,*buf;
-	STACK_OF(CONF_VALUE) *section_sk=NULL;
 	char *start,*psection,*pname;
 	void *h = (void *)(conf->data);
 
@@ -251,7 +250,6 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
 					CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
 		goto err;
 		}
-	section_sk=(STACK_OF(CONF_VALUE) *)sv->value;
 
 	bufnum=0;
 	again=0;
@@ -343,7 +341,6 @@ again:
 					CONF_R_UNABLE_TO_CREATE_NEW_SECTION);
 				goto err;
 				}
-			section_sk=(STACK_OF(CONF_VALUE) *)sv->value;
 			continue;
 			}
 		else
