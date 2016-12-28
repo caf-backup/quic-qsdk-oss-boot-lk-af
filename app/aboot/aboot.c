@@ -50,6 +50,10 @@
 #include <crypto_hash.h>
 #include <malloc.h>
 
+#ifdef MMC_SDHCI_SUPPORT
+#include <mmc_wrapper.h>
+#endif
+
 #if DEVICE_TREE
 #include <libfdt.h>
 #endif
