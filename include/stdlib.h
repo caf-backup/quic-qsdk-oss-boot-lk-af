@@ -36,6 +36,10 @@ int atoi(const char *num);
 unsigned int atoui(const char *num);
 long atol(const char *num);
 unsigned long atoul(const char *num);
+unsigned long int strtoul(const char *nptr, char **endptr, int base);
+char *getenv(const char *name);
+void qsort(void *base, size_t nmemb, size_t size,
+	   int (*compar)(const void *, const void *));
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
