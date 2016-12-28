@@ -550,19 +550,6 @@ struct mmc_boot_host {
 
 #define MMC_RCA 2
 
-/* Can be used to unpack array of upto 32 bits data */
-#define UNPACK_BITS(array, start, len, size_of)                               \
-    ({                                                             \
-     unsigned int indx = (start) / (size_of);                  \
-     unsigned int offset = (start) % (size_of);                \
-     unsigned int mask = (((len)<(size_of))? 1<<(len):0) - 1; \
-     unsigned int unpck = array[indx] >> offset;               \
-     unsigned int indx2 = ((start) + (len) - 1) / (size_of);       \
-     if(indx2 > indx)                                          \
-     unpck |= array[indx2] << ((size_of) - offset);          \
-     unpck & mask;                                             \
-     })
-
 #define MMC_BOOT_MAX_COMMAND_RETRY    1000
 #define MMC_BOOT_RD_BLOCK_LEN         512
 #define MMC_BOOT_WR_BLOCK_LEN         512
@@ -587,6 +574,7 @@ struct mmc_boot_host {
 #define MMC_CLK_ENABLE      1
 #define MMC_CLK_DISABLE     0
 
+#ifndef MMC_SDHCI_SUPPORT
 unsigned int mmc_boot_main(unsigned char slot, unsigned int base);
 unsigned int mmc_boot_read_from_card(struct mmc_boot_host *host,
 				     struct mmc_boot_card *card,
@@ -613,4 +601,5 @@ void mmc_mclk_reg_wr_delay();
 void mmc_boot_mci_clk_enable();
 void mmc_boot_mci_clk_disable();
 uint64_t mmc_get_device_capacity();
+#endif
 #endif

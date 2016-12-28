@@ -48,4 +48,5 @@ void mmc_device_sleep();
 void mmc_set_lun(uint8_t lun);
 uint8_t mmc_get_lun(void);
 void  mmc_read_partition_table(uint8_t arg);
+void clock_config_cdc(uint8_t slot);
 #endif
