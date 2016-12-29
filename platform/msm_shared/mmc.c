@@ -465,7 +465,8 @@ mmc_boot_decode_and_save_csd(struct mmc_boot_card *card, unsigned int *raw_csd)
  * Decode CID sent by the card.
  */
 static unsigned int
-mmc_boot_decode_and_save_cid(struct mmc_boot_card *card, unsigned int *raw_cid)
+mmc_boot_decode_and_save_cid(struct mmc_boot_card *card,
+			     unsigned int *raw_cid)
 {
 	struct mmc_boot_cid mmc_cid;
 	unsigned int mmc_sizeof = 0;
@@ -494,7 +495,7 @@ mmc_boot_decode_and_save_cid(struct mmc_boot_card *card, unsigned int *raw_cid)
 		mmc_cid.pnm[6] = 0;
 
 		mmc_cid.prv = UNPACK_BITS(raw_cid, 56, 8, mmc_sizeof);
-		mmc_cid.psn = UNPACK_BITS(raw_cid, 24, 32, mmc_sizeof);
+		mmc_cid.psn = UNPACK_BITS(raw_cid,24,16,mmc_sizeof);
 		mmc_cid.month = UNPACK_BITS(raw_cid, 8, 4, mmc_sizeof);
 		mmc_cid.year = UNPACK_BITS(raw_cid, 12, 8, mmc_sizeof);
 		mmc_cid.year += 2000;
@@ -513,7 +514,7 @@ mmc_boot_decode_and_save_cid(struct mmc_boot_card *card, unsigned int *raw_cid)
 		mmc_cid.pnm[6] = 0;
 
 		mmc_cid.prv = UNPACK_BITS(raw_cid, 48, 8, mmc_sizeof);
-		mmc_cid.psn = UNPACK_BITS(raw_cid, 16, 32, mmc_sizeof);
+		mmc_cid.psn = UNPACK_BITS(raw_cid, 16, 16, mmc_sizeof);
 		mmc_cid.month = UNPACK_BITS(raw_cid, 8, 4, mmc_sizeof);
 		mmc_cid.year = UNPACK_BITS(raw_cid, 12, 4, mmc_sizeof);
 		mmc_cid.year += 1997;

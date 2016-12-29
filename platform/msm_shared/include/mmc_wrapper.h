@@ -57,6 +57,5 @@ unsigned int mmc_boot_read_from_card(struct mmc_boot_host *host,
 			unsigned long long data_addr,
 			unsigned int data_len, unsigned int *out);
 struct mmc_boot_host *get_mmc_host(void);
-struct mmc_card *get_mmc_card(void);
 #endif
 #endif
