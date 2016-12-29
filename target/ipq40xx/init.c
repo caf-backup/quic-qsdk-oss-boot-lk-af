@@ -59,6 +59,8 @@
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID 	0x9
 #define SCM_CMD_TZ_FORCE_DLOAD_ID 		0x10
 
+extern struct mmc_card *get_mmc_card();
+
 extern void dmb(void);
 
 /* Setting this variable to different values defines the

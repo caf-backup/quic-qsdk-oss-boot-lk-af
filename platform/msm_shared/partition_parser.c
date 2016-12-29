@@ -50,6 +50,8 @@ struct partition_entry *partition_entries;
 unsigned gpt_partitions_exist = 0;
 unsigned partition_count = 0;
 
+extern struct mmc_boot_card *get_mmc_card(void);
+
 //TODO: Remove the dependency of mmc in these functions
 unsigned int
 partition_read_table(struct mmc_boot_host *mmc_host,
@@ -58,7 +60,8 @@ partition_read_table(struct mmc_boot_host *mmc_host,
 	unsigned int ret;
 
 	/* Allocate partition entries array */
-	partition_entries = (struct partition_entry *) calloc(NUM_PARTITIONS, sizeof(struct partition_entry));
+	partition_entries = (struct partition_entry *) calloc(NUM_PARTITIONS, 
+			     sizeof(struct partition_entry));
 	if (partition_entries == NULL) {
 		dprintf(CRITICAL, "%s: calloc failed for partition entries\n",
 				__func__);

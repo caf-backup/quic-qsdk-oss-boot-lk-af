@@ -35,6 +35,7 @@
 #include <ufs.h>
 #include <target.h>
 #include <string.h>
+#include <partition_parser.h>
 
 /*
  * Weak function for UFS.
@@ -554,7 +555,8 @@ void mmc_read_partition_table(uint8_t arg)
 	void *dev;
 	uint8_t lun = 0;
 	uint8_t max_luns;
-
+	struct mmc_boot_host *mmc_host = get_mmc_host();
+	struct mmc_card *mmc_card = get_mmc_card();
 	dev = target_mmc_device();
 
 	if(!target_boot_device_emmc())
@@ -566,8 +568,7 @@ void mmc_read_partition_table(uint8_t arg)
 		for(lun = arg; lun < max_luns; lun++)
 		{
 			mmc_set_lun(lun);
-
-			if(partition_read_table())
+			if(partition_read_table(mmc_host, (struct mmc_boot_card *)mmc_card))
 			{
 				dprintf(CRITICAL, "Error reading the partition table info for lun %d\n", lun);
 			}
@@ -575,7 +576,7 @@ void mmc_read_partition_table(uint8_t arg)
 	}
 	else
 	{
-		if(partition_read_table())
+		if(partition_read_table(mmc_host, (struct mmc_boot_card *)mmc_card))
 		{
 			dprintf(CRITICAL, "Error reading the partition table info\n");
 		}
