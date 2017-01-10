@@ -269,7 +269,7 @@ crypto_send_data(void *ctx_ptr, unsigned char *data_ptr,
 					data[3] = *(buff_ptr + i + 3);
 					/* i will incremented by 1 in outside block */
 					i += 3;
-					wr_ce(htonl(*(unsigned int *)data),
+					wr_ce(htonl(*data),
 					      CRYPTO_DATA_IN);
 					memset(data, 0, 4);
 				}
@@ -323,7 +323,7 @@ crypto_send_data(void *ctx_ptr, unsigned char *data_ptr,
 		}
 		if ((ce_status & DIN_RDY)
 		    && ((ce_status & DIN_SIZE_AVAIL) >= 4)) {
-			wr_ce(*(unsigned int *)data, CRYPTO_DATA_IN);
+			wr_ce(*data, CRYPTO_DATA_IN);
 		}
 	}
 	*ret_status = CRYPTO_ERR_NONE;
