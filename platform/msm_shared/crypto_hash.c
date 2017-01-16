@@ -30,11 +30,13 @@
 #include <debug.h>
 #include <sys/types.h>
 #include "crypto_hash.h"
+#include <sha.h>
 
 static crypto_SHA256_ctx g_sha256_ctx;
 static crypto_SHA1_ctx g_sha1_ctx;
 static unsigned char crypto_init_done = FALSE;
 
+crypto_engine_type board_ce_type(void);
 extern void ce_clock_init(void);
 
 __WEAK void crypto_eng_cleanup()
@@ -57,7 +59,7 @@ hash_find(unsigned char *addr, unsigned int size, unsigned char *digest,
 	if (auth_alg == 1) {
 		if(platform_ce_type == CRYPTO_ENGINE_TYPE_SW)
 			/* Hardware CE is not present , use software hashing */
-			digest = SHA1(addr, size, digest);
+			digest = (unsigned char *)SHA1(addr, size, digest);
 		else if (platform_ce_type == CRYPTO_ENGINE_TYPE_HW)
 			ret_val = crypto_sha1(addr, size, digest);
 		else
@@ -65,7 +67,7 @@ hash_find(unsigned char *addr, unsigned int size, unsigned char *digest,
 	} else if (auth_alg == 2) {
 		if(platform_ce_type == CRYPTO_ENGINE_TYPE_SW)
 			/* Hardware CE is not present , use software hashing */
-			digest = SHA256(addr, size, digest);
+			digest = (unsigned char *)SHA256(addr, size, digest);
 		else if (platform_ce_type == CRYPTO_ENGINE_TYPE_HW)
 			ret_val = crypto_sha256(addr, size, digest);
 		else

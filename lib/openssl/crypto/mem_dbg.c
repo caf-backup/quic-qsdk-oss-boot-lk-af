@@ -536,9 +536,12 @@ void CRYPTO_dbg_malloc(void *addr, int num, const char *file, int line,
 				(before_p & 128) ? '*' : '+',
 				m->addr, m->num);
 #endif
+
+#ifndef LK_NO_TIME
 			if (options & V_CRYPTO_MDEBUG_TIME)
 				m->time=time(NULL);
 			else
+#endif
 				m->time=0;
 
 			CRYPTO_THREADID_current(&tmp.threadid);
@@ -753,7 +756,6 @@ static void print_leak_doall_arg(const MEM *m, MEM_LEAK *l)
 		}
 #endif
 	}
-#endif
 
 static IMPLEMENT_LHASH_DOALL_ARG_FN(print_leak, const MEM, MEM_LEAK)
 
@@ -844,7 +846,7 @@ void CRYPTO_mem_leaks_fp(FILE *fp)
 	BIO_free(b);
 	}
 #endif
-
+#endif
 
 
 /* FIXME: We really don't allow much to the callback.  For example, it has

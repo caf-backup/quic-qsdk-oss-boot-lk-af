@@ -36,10 +36,11 @@
 #include <stdlib.h>
 #include <bits.h>
 #include <debug.h>
-#include <mmc.h>
 #include <sdhci.h>
 #include <sdhci_msm.h>
 #include <mmc_sdhci.h>
+#include <mmc.h>
+#include <mmc_wrapper.h>
 
 /* Known data stored in the card & read during tuning
  * process. 64 bytes for 4bit bus width & 128 bytes
@@ -169,7 +170,7 @@ void sdhci_msm_init(struct sdhci_host *host, struct sdhci_msm_data *config)
 	/*
 	 * Register the interrupt handler for pwr irq
 	 */
-	register_int_handler(config->pwr_irq, sdhci_int_handler, (void *)config);
+	register_int_handler(config->pwr_irq, (int_handler)sdhci_int_handler, (void *)config);
 
 	unmask_interrupt(config->pwr_irq);
 
@@ -334,7 +335,7 @@ static int sdhci_msm_find_appropriate_phase(struct sdhci_host *host,
 										   uint32_t total_phases)
 {
 	int sub_phases[MAX_PHASES][MAX_PHASES]={{0}};
-	int phases_per_row[MAX_PHASES] = {0};
+	uint32_t phases_per_row[MAX_PHASES] = {0};
 	uint32_t i,j;
 	int selected_phase = 0;
 	uint32_t row_index = 0;
@@ -526,9 +527,9 @@ static uint32_t sdhci_msm_cdclp533_calibration(struct sdhci_host *host)
  */
 uint32_t sdhci_msm_execute_tuning(struct sdhci_host *host, uint32_t bus_width)
 {
-	uint32_t *tuning_block;
+	const uint32_t *tuning_block;
 	uint32_t *tuning_data;
-	uint32_t tuned_phases[MAX_PHASES] = {{0}};
+	uint32_t tuned_phases[MAX_PHASES] = {0};
 	uint32_t size;
 	uint32_t phase = 0;
 	uint32_t tuned_phase_cnt = 0;

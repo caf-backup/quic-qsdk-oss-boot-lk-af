@@ -37,6 +37,7 @@
 #include <board.h>
 #include <smem.h>
 #include <mmc_sdhci.h>
+#include <mmc_wrapper.h>
 
 /* Set rate and enable the clock */
 static void clock_config(uint32_t ns, uint32_t md, uint32_t ns_addr, uint32_t md_addr)

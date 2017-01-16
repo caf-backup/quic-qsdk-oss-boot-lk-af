@@ -28,12 +28,14 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <mmc.h>
 #include <mmc_wrapper.h>
 #include <mmc_sdhci.h>
 #include <sdhci.h>
 #include <ufs.h>
 #include <target.h>
 #include <string.h>
+#include <partition_parser.h>
 
 /*
  * Weak function for UFS.
@@ -138,7 +140,7 @@ uint32_t mmc_write(uint64_t data_addr, uint32_t data_len, void *in)
 			val = mmc_sdhci_write((struct mmc_device *)dev, (void *)sptr, (data_addr / block_size), (write_size / block_size));
 			if (val)
 			{
-				dprintf(CRITICAL, "Failed Writing block @ %x\n", (data_addr / block_size));
+				dprintf(CRITICAL, "Failed Writing block @ %llx\n", (data_addr / block_size));
 				return val;
 			}
 			sptr += write_size;
@@ -150,7 +152,7 @@ uint32_t mmc_write(uint64_t data_addr, uint32_t data_len, void *in)
 			val = mmc_sdhci_write((struct mmc_device *)dev, (void *)sptr, (data_addr / block_size), (data_len / block_size));
 
 		if (val)
-			dprintf(CRITICAL, "Failed Writing block @ %x\n", (data_addr / block_size));
+			dprintf(CRITICAL, "Failed Writing block @ %llx\n", (data_addr / block_size));
 	}
 	else
 	{
@@ -199,7 +201,7 @@ uint32_t mmc_read(uint64_t data_addr, uint32_t *out, uint32_t data_len)
 			ret = mmc_sdhci_read((struct mmc_device *)dev, (void *)sptr, (data_addr / block_size), (read_size / block_size));
 			if (ret)
 			{
-				dprintf(CRITICAL, "Failed Reading block @ %x\n", (data_addr / block_size));
+				dprintf(CRITICAL, "Failed Reading block @ %llx\n", (data_addr / block_size));
 				return ret;
 			}
 			sptr += read_size;
@@ -211,7 +213,7 @@ uint32_t mmc_read(uint64_t data_addr, uint32_t *out, uint32_t data_len)
 			ret = mmc_sdhci_read((struct mmc_device *)dev, (void *)sptr, (data_addr / block_size), (data_len / block_size));
 
 		if (ret)
-			dprintf(CRITICAL, "Failed Reading block @ %x\n", (data_addr / block_size));
+			dprintf(CRITICAL, "Failed Reading block @ %llx\n", (data_addr / block_size));
 	}
 	else
 	{
@@ -292,7 +294,7 @@ static uint32_t mmc_zero_out(struct mmc_device* dev, uint32_t blk_addr, uint32_t
 	}
 	else
 	{
-		dprintf(CRITICAL, "Erase Fail: Erase size: %u is bigger than scratch region:%u\n", scratch_size);
+		dprintf(CRITICAL, "Erase Fail: Erase size: %u is bigger than scratch region:%u\n", erase_size, scratch_size);
 		return 1;
 	}
 
@@ -366,7 +368,7 @@ uint32_t mmc_erase_card(uint64_t addr, uint64_t len)
 		unaligned_blks = blk_count % erase_unit_sz;
 		blks_to_erase = blk_count - unaligned_blks;
 
-		dprintf(SPEW, "Performing SDHCI erase: 0x%x:0x%x\n", blk_addr, blks_to_erase);
+		dprintf(SPEW, "Performing SDHCI erase: 0x%x:0x%llx\n", blk_addr, blks_to_erase);
 		if (mmc_sdhci_erase((struct mmc_device *)dev, blk_addr, blks_to_erase * block_size))
 		{
 			dprintf(CRITICAL, "MMC erase failed\n");
@@ -553,7 +555,8 @@ void mmc_read_partition_table(uint8_t arg)
 	void *dev;
 	uint8_t lun = 0;
 	uint8_t max_luns;
-
+	struct mmc_boot_host *mmc_host = get_mmc_host();
+	struct mmc_card *mmc_card = get_mmc_card();
 	dev = target_mmc_device();
 
 	if(!target_boot_device_emmc())
@@ -565,8 +568,7 @@ void mmc_read_partition_table(uint8_t arg)
 		for(lun = arg; lun < max_luns; lun++)
 		{
 			mmc_set_lun(lun);
-
-			if(partition_read_table())
+			if(partition_read_table(mmc_host, (struct mmc_boot_card *)mmc_card))
 			{
 				dprintf(CRITICAL, "Error reading the partition table info for lun %d\n", lun);
 			}
@@ -574,7 +576,7 @@ void mmc_read_partition_table(uint8_t arg)
 	}
 	else
 	{
-		if(partition_read_table())
+		if(partition_read_table(mmc_host, (struct mmc_boot_card *)mmc_card))
 		{
 			dprintf(CRITICAL, "Error reading the partition table info\n");
 		}

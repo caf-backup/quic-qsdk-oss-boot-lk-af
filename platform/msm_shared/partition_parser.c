@@ -30,6 +30,7 @@
 #include <string.h>
 #include <crc32.h>
 #include "mmc.h"
+#include "mmc_wrapper.h"
 #include "partition_parser.h"
 
 #define GPT_HEADER_SIZE 92
@@ -49,6 +50,8 @@ struct partition_entry *partition_entries;
 unsigned gpt_partitions_exist = 0;
 unsigned partition_count = 0;
 
+extern struct mmc_boot_card *get_mmc_card(void);
+
 //TODO: Remove the dependency of mmc in these functions
 unsigned int
 partition_read_table(struct mmc_boot_host *mmc_host,
@@ -57,7 +60,8 @@ partition_read_table(struct mmc_boot_host *mmc_host,
 	unsigned int ret;
 
 	/* Allocate partition entries array */
-	partition_entries = (struct partition_entry *) calloc(NUM_PARTITIONS, sizeof(struct partition_entry));
+	partition_entries = (struct partition_entry *) calloc(NUM_PARTITIONS, 
+			     sizeof(struct partition_entry));
 	if (partition_entries == NULL) {
 		dprintf(CRITICAL, "%s: calloc failed for partition entries\n",
 				__func__);
@@ -463,7 +467,7 @@ unsigned int calculate_crc32(unsigned char *buffer, int len)
 {
 	int byte_length = 8;	/*length of unit (i.e. byte) */
 	int msb = 0;
-	int polynomial = 0x104C11DB7;	/* IEEE 32bit polynomial */
+	int polynomial = (int)0x104C11DB7;	/* IEEE 32bit polynomial */
 	unsigned int regs = 0xFFFFFFFF;	/* init to all ones */
 	int regs_mask = 0xFFFFFFFF;	/* ensure only 32 bit answer */
 	int regs_msb = 0;
@@ -524,7 +528,7 @@ patch_gpt(unsigned char *gptImage,
 	  unsigned int array_size,
 	  unsigned int max_part_count, unsigned int part_entry_size)
 {
-	unsigned int partition_entry_array_start;
+	unsigned char *partition_entry_array_start;
 	unsigned char *primary_gpt_header;
 	unsigned char *secondary_gpt_header;
 	unsigned int offset;
@@ -605,7 +609,7 @@ write_gpt(unsigned size, unsigned char *gptImage,
 	unsigned long long backup_header_lba;
 	unsigned int max_partition_count = 0;
 	unsigned int partition_entry_size;
-	unsigned int partition_entry_array_start;
+	unsigned char *partition_entry_array_start;
 	unsigned char *primary_gpt_header;
 	unsigned char *secondary_gpt_header;
 	unsigned int offset;
@@ -684,7 +688,7 @@ write_gpt(unsigned size, unsigned char *gptImage,
 	/* Writing the partition entries array for the primary header */
 	partition_entry_array_start = primary_gpt_header + BLOCK_SIZE;
 	ret = write_gpt_partition_array(primary_gpt_header,
-					partition_entry_array_start,
+					(unsigned int)partition_entry_array_start,
 					partition_entry_array_size);
 	if (ret) {
 		dprintf(CRITICAL,
@@ -696,7 +700,7 @@ write_gpt(unsigned size, unsigned char *gptImage,
 	partition_entry_array_start = primary_gpt_header + BLOCK_SIZE +
 	    partition_entry_array_size;
 	ret = write_gpt_partition_array(secondary_gpt_header,
-					partition_entry_array_start,
+					(unsigned int)partition_entry_array_start,
 					partition_entry_array_size);
 	if (ret) {
 		dprintf(CRITICAL,

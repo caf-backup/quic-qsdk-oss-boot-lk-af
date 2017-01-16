@@ -39,6 +39,19 @@
 #define BITMAP_WORD(x) ((x) / BITMAP_BITS_PER_WORD)
 #define BITMAP_BIT_IN_WORD(x) ((x) & (BITMAP_BITS_PER_WORD - 1))
 
+/* Can be used to unpack array of upto 32 bits data */
+#define UNPACK_BITS(array, start, len, size_of)				\
+	({								\
+		unsigned int indx = (start) / (size_of);		\
+		unsigned int offset = (start) % (size_of);		\
+		unsigned int mask = (((len)<(size_of))? 1<<(len):0) - 1; \
+		unsigned int unpck = array[indx] >> offset;		\
+		unsigned int indx2 = ((start) + (len) - 1) / (size_of);	\
+		if(indx2 > indx)					\
+			unpck |= array[indx2] << ((size_of) - offset);	\
+		unpck & mask;						\
+	})
+
 static inline int bitmap_set(unsigned long *bitmap, int bit)
 {
 	unsigned long mask = 1 << BITMAP_BIT_IN_WORD(bit);

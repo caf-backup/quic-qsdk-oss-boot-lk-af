@@ -895,4 +895,6 @@ struct pll_rate {
 #define PLL_RATE(l, m, n, v, d, i) { l, m, n, v, (d>>1), i }
 
 void clock_config_uart_dm(uint8_t id);
+void clock_init_mmc(uint32_t id);
+void clock_config_mmc(uint32_t, uint32_t);
 #endif

@@ -32,6 +32,7 @@
 
 #include <platform/iomap.h>
 #include <platform/interrupts.h>
+#include "../../arch/arm/include/arch/arm.h"
 
 #define GIC_CPU_REG(off)            (MSM_GIC_CPU_BASE  + (off))
 #define GIC_DIST_REG(off)           (MSM_GIC_DIST_BASE + (off))
@@ -62,5 +63,10 @@ struct ihandler {
 };
 
 void qgic_init(void);
+enum handler_return gic_platform_irq(struct arm_iframe *frame);
+void gic_platform_fiq(struct arm_iframe *frame);
+status_t gic_mask_interrupt(unsigned int vector);
+status_t gic_unmask_interrupt(unsigned int vector);
+void gic_register_int_handler(unsigned int vector, int_handler func, void *arg);
 
 #endif

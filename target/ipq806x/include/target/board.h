@@ -223,5 +223,10 @@ typedef struct {
 extern board_ipq806x_params_t *gboard_param;
 
 board_ipq806x_params_t *get_board_param(unsigned int machid);
+void ipq_configure_gpio(gpio_func_data_t *gpio, int count);
+int ipq_athrs17_init();
+void gpio_tlmm_config(uint32_t gpio, uint8_t func,
+		uint8_t dir, uint8_t pull,
+		uint8_t drvstr, uint32_t enable);
 
 #endif
