@@ -259,6 +259,8 @@ static void console_loop(void)
 			printf("command not found\n");
 			continue;
 		}
+
+		command->cmd_callback(argc, args);
 	}
 }
 
