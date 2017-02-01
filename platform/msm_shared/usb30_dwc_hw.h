@@ -52,4 +52,5 @@ uint8_t dwc_connectspeed(dwc_dev_t *dev);
 uint8_t dwc_device_run_status(dwc_dev_t *dev);
 void dwc_gctl_init(dwc_dev_t *dev);
 void dwc_axi_master_config(dwc_dev_t *dev);
+void dwc_device_enter_test_mode(dwc_dev_t *dev);
 #endif

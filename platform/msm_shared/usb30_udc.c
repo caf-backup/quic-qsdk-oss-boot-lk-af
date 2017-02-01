@@ -591,6 +591,26 @@ static int udc_handle_setup(void *context, uint8_t *data)
 	case SETUP(DEVICE_WRITE, SET_FEATURE):
 		{
 			DBG("\n DEVICE_WRITE : SET_FEATURE");
+			if (s.value == TEST_MODE)
+			{
+				dwc->test_mode = s.index;
+
+				switch(dwc->test_mode)
+				{
+					case TEST_J:
+					case TEST_K:
+					case TEST_SE0_NAK:
+					case TEST_PACKET:
+					case TEST_FORCE_ENABLE:
+						/* Upper byte of Windex contain test mode */
+						dwc->test_mode >>= 8;
+						dwc->is_test_mode = true;
+						break;
+					default:
+						DBG("\n Unknown test mode: %x\n", dwc->test_mode);
+				}
+				return DWC_SETUP_2_STAGE;
+			}
 			goto stall;
 		}
 		break;
