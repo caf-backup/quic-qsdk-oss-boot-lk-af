@@ -382,6 +382,13 @@ uint8_t dwc_device_run_status(dwc_dev_t *dev)
 	return REG_READ_FIELD(dev, DCTL, RUN_STOP);
 }
 
+/* dwc_device_enter_test_mode - Enables USB2 Test Modes */
+void dwc_device_enter_test_mode(dwc_dev_t *dev)
+{
+	/* set test mode (J, K, SE0_NAK, PACKET, FORCE ENABLE) */
+	REG_WRITE_FIELD(dev, DCTL, TSTCTL, dev->test_mode);
+}
+
 /******************** Managing various events *********************************/
 /* event init:
    program event buffer address, size and reset event count to 0.
