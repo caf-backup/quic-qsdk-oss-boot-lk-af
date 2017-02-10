@@ -59,7 +59,7 @@ void smem_ptable_init(void)
 {
 	unsigned i;
 	unsigned ret;
-	unsigned len;
+	unsigned len = 0;
 
 	/* Read only the header portion of ptable */
 	ret = smem_read_alloc_entry_offset(SMEM_AARM_PARTITION_TABLE,

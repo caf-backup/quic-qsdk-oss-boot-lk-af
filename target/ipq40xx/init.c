@@ -34,7 +34,6 @@
 #include <smem.h>
 #include <baseband.h>
 #include <platform/iomap.h>
-#include <mmc.h>
 #include <platform/clock.h>
 #include <platform/timer.h>
 #include <platform/gpio.h>
@@ -48,12 +47,19 @@
 #include <board.h>
 #include <target/board.h>
 #include <scm.h>
+#include <mmc.h>
 #include <mmc_sdhci.h>
+#include <sdhci_msm.h>
+#include <stdlib.h>
+#include <mmc_wrapper.h>
+#include <partition_parser.h>
 
 #define APPS_DLOAD_MAGIC			0x10
 #define CLEAR_MAGIC				0x0
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID 	0x9
 #define SCM_CMD_TZ_FORCE_DLOAD_ID 		0x10
+
+extern struct mmc_card *get_mmc_card();
 
 extern void dmb(void);
 
@@ -69,7 +75,7 @@ static crypto_engine_type platform_ce_type = CRYPTO_ENGINE_TYPE_SW;
 static void target_uart_init(void);
 #define DELAY 1
 
-static void set_sdc_power_ctrl(void);
+static void set_sdc_power_ctrl(void){}
 
 static struct mmc_device *mmc_dev;
 
@@ -137,15 +143,16 @@ void target_mmc_deinit()
 
 void target_init(void)
 {
-	unsigned char slot;
 	unsigned platform_id = board_platform_id();
+	struct mmc_boot_host *mmc_host = get_mmc_host();
+	struct mmc_card *mmc_card = get_mmc_card();
 
 	dprintf(INFO, "target_init()\n");
 	dprintf(INFO, "board platform id is 0x%x\n",  platform_id);
 	dprintf(INFO, "board platform verson is 0x%x\n",  board_platform_ver());
 
 	target_sdc_init();
-	if (partition_read_table())
+	if (partition_read_table(mmc_host, (struct mmc_boot_card *)mmc_card))
 	{
 		dprintf(CRITICAL, "Error reading the partition table info\n");
 		ASSERT(0);
@@ -187,7 +194,6 @@ void reboot_device(unsigned reboot_reason)
 unsigned check_reboot_mode(void)
 {
 	unsigned restart_reason = 0;
-	int ret;
 	volatile uint32_t val;
 
 	/*
@@ -195,12 +201,12 @@ unsigned check_reboot_mode(void)
 	 * The SBLs would not have loaded QSEE firmware, proceeding with
 	 * the boot is not possible. Reboot the system cleanly.
 	 */
-	 ret = scm_call(SCM_SVC_BOOT, SCM_SVC_RD, NULL,
+	 scm_call(SCM_SVC_BOOT, SCM_SVC_RD, NULL,
                         0, (void *)&val, sizeof(val));
 	if (val == APPS_DLOAD_MAGIC) {
 
 		val = 0x0;
-                ret = scm_call(SCM_SVC_BOOT, SCM_SVC_WR,
+                scm_call(SCM_SVC_BOOT, SCM_SVC_WR,
                         (void *)&val, sizeof(val), NULL, 0);
 		dprintf(CRITICAL, "Apps Dload Magic set. Rebooting...\n");
 		mdelay(10000);

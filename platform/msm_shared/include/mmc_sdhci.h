@@ -196,19 +196,6 @@
 
 #define MMC_SAVE_TIMING(host, TIMING)              host->timing = TIMING
 
-/* Can be used to unpack array of upto 32 bits data */
-#define UNPACK_BITS(array, start, len, size_of)           \
-    ({                                                    \
-     uint32_t indx = (start) / (size_of);                 \
-     uint32_t offset = (start) % (size_of);               \
-     uint32_t mask = (((len)<(size_of))? 1<<(len):0) - 1; \
-     uint32_t unpck = array[indx] >> offset;              \
-     uint32_t indx2 = ((start) + (len) - 1) / (size_of);  \
-     if(indx2 > indx)                                     \
-     unpck |= array[indx2] << ((size_of) - offset);       \
-     unpck & mask;                                        \
-     })
-
 #define swap_endian32(x) \
 	((uint32_t)( \
 	(((uint32_t)(x) & (uint32_t)0x000000ffUL) << 24) | \

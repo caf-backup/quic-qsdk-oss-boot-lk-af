@@ -17,7 +17,6 @@
 #include <lib/ptable.h>
 #include <smem.h>
 #include <platform/iomap.h>
-#include <mmc.h>
 #include <platform/timer.h>
 #include <platform/gpio.h>
 #include <reg.h>
@@ -29,10 +28,11 @@
 #include <board.h>
 #include <target/board.h>
 #include <partition_parser.h>
+#include <stdlib.h>
+#include <libfdt.h>
+#include <mmc_wrapper.h>
 
 board_ipq40xx_params_t *gboard_param;
-
-void ipq_configure_gpio(gpio_func_data_t *gpio, uint count);
 
 gpio_func_data_t mmc_ap_dk07[] = {
 	{
@@ -1473,13 +1473,13 @@ void update_mac_addrs(void *fdt)
 		critical("Could not allocate sufficient memory to read MAC information\n");
 		return;
 	}
-	if (mmc_read(off, mac, BLOCK_SIZE)) {
+	if (mmc_read(off, (unsigned int *)mac, BLOCK_SIZE)) {
 		critical("Could not read ART partition\n");
 		return;
 	}
 
 	for (i = j = 0; i < IPQ_GMAC_COUNT; i++) {
-		char *p = &mac[j * 6];
+		unsigned char *p = &mac[j * 6];
 
 		sprintf(eth, "ethernet%d", i);
 

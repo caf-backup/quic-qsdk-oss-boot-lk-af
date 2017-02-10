@@ -39,9 +39,8 @@ static struct board_data board = {UNKNOWN,
 	HW_PLATFORM_VERSION_UNKNOWN,
 	LINUX_MACHTYPE_UNKNOWN,
 	BASEBAND_MSM,
-	PMIC_IS_INVALID,
+	{{0}},
 	0};
-
 
 /*
  * The HW platform revision is specified as qcom,board_id in the dts file

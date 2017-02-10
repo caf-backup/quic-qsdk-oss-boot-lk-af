@@ -40,7 +40,7 @@ static time_t timer_interval;
 /* time in ms from start of LK. */
 static volatile uint32_t current_time;
 static uint32_t tick_count;
-
+static uint32_t ctrl;
 extern void isb();
 static void qtimer_enable();
 
@@ -89,8 +89,6 @@ void qtimer_set_physical_timer(time_t msecs_interval,
 
 static void qtimer_enable()
 {
-	uint32_t ctrl;
-
 	/* read ctrl value */
 	__asm__ volatile("mrc p15, 0, %0, c14, c2, 1" : :"r" (ctrl));
 
@@ -104,8 +102,6 @@ static void qtimer_enable()
 
 void qtimer_disable()
 {
-	uint32_t ctrl;
-
 	mask_interrupt(INT_QTMR_NON_SECURE_PHY_TIMER_EXP);
 
 	/* read ctrl value */

@@ -819,7 +819,7 @@ _flash_nand_read_page(dmov_s * cmdlist, unsigned *ptrlist,
 	 * 1 : The block is bad
 	 * 0 : The block is good
 	 */
-	if (bbtbl[block] == -1) {
+	if (bbtbl[block] == (unsigned)-1) {
 		isbad = flash_nand_block_isbad(cmdlist, ptrlist, page);
 		if (isbad) {
 			/* Found bad , set the bad table entry */
@@ -2027,8 +2027,6 @@ flash_onenand_erase_block(dmov_s * cmdlist, unsigned *ptrlist, unsigned page)
 	unsigned onenand_startbuffer = DATARAM0_0 << 8;
 
 	unsigned controller_status;
-	unsigned interrupt_status;
-	unsigned ecc_status;
 
 	if ((page * flash_pagesize) & (erasesize - 1))
 		return -1;
@@ -2246,8 +2244,6 @@ flash_onenand_erase_block(dmov_s * cmdlist, unsigned *ptrlist, unsigned page)
 
 	dmov_exec_cmdptr(DMOV_NAND_CHAN, ptr);
 
-	ecc_status = (data->data3 >> 16) & 0x0000FFFF;
-	interrupt_status = (data->data4 >> 0) & 0x0000FFFF;
 	controller_status = (data->data4 >> 16) & 0x0000FFFF;
 
 #if VERBOSE
@@ -2326,8 +2322,6 @@ _flash_onenand_read_page(dmov_s * cmdlist, unsigned *ptrlist,
 	    ONENAND_SYSCFG1_ECCENA;
 
 	unsigned controller_status;
-	unsigned interrupt_status;
-	unsigned ecc_status;
 	if (raw_mode != 1) {
 		int isbad = 0;
 		isbad = flash_onenand_block_isbad(cmdlist, ptrlist, page);
@@ -2648,8 +2642,6 @@ _flash_onenand_read_page(dmov_s * cmdlist, unsigned *ptrlist,
 
 	dmov_exec_cmdptr(DMOV_NAND_CHAN, ptr);
 
-	ecc_status = (data->data3 >> 16) & 0x0000FFFF;
-	interrupt_status = (data->data4 >> 0) & 0x0000FFFF;
 	controller_status = (data->data4 >> 16) & 0x0000FFFF;
 
 #if VERBOSE
@@ -2743,8 +2735,6 @@ _flash_onenand_write_page(dmov_s * cmdlist, unsigned *ptrlist,
 	    ONENAND_SYSCFG1_ECCENA;
 
 	unsigned controller_status;
-	unsigned interrupt_status;
-	unsigned ecc_status;
 
 	char flash_oob[64];
 
@@ -3080,8 +3070,6 @@ _flash_onenand_write_page(dmov_s * cmdlist, unsigned *ptrlist,
 
 	dmov_exec_cmdptr(DMOV_NAND_CHAN, ptr);
 
-	ecc_status = (data->data3 >> 16) & 0x0000FFFF;
-	interrupt_status = (data->data4 >> 0) & 0x0000FFFF;
 	controller_status = (data->data4 >> 16) & 0x0000FFFF;
 
 #if VERBOSE
@@ -3318,7 +3306,7 @@ static struct ptable *flash_ptable = NULL;
 
 void flash_init(void)
 {
-	int i = 0;
+	unsigned int i = 0;
 	ASSERT(flash_ptable == NULL);
 
 	flash_ptrlist = memalign(32, 1024);

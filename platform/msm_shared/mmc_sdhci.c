@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <debug.h>
 #include <reg.h>
+#include <mmc.h>
 #include <mmc_sdhci.h>
 #include <sdhci.h>
 #include <sdhci_msm.h>
@@ -287,7 +288,7 @@ static uint32_t mmc_decode_and_save_cid(struct mmc_card *card,
 		mmc_cid.pnm[6] = 0;
 
 		mmc_cid.prv = UNPACK_BITS(raw_cid, 56, 8, mmc_sizeof);
-		mmc_cid.psn = UNPACK_BITS(raw_cid, 24, 32, mmc_sizeof);
+		mmc_cid.psn = UNPACK_BITS(raw_cid, 24, 16, mmc_sizeof);
 		mmc_cid.month = UNPACK_BITS(raw_cid, 8, 4, mmc_sizeof);
 		mmc_cid.year = UNPACK_BITS(raw_cid, 12, 8, mmc_sizeof);
 		mmc_cid.year += 2000;
@@ -302,7 +303,7 @@ static uint32_t mmc_decode_and_save_cid(struct mmc_card *card,
 		mmc_cid.pnm[6] = 0;
 
 		mmc_cid.prv = UNPACK_BITS(raw_cid, 48, 8, mmc_sizeof);
-		mmc_cid.psn = UNPACK_BITS(raw_cid, 16, 32, mmc_sizeof);
+		mmc_cid.psn = UNPACK_BITS(raw_cid, 16, 16, mmc_sizeof);
 		mmc_cid.month = UNPACK_BITS(raw_cid, 8, 4, mmc_sizeof);
 		mmc_cid.year = UNPACK_BITS(raw_cid, 12, 4, mmc_sizeof);
 		mmc_cid.year += 1997;
@@ -1081,7 +1082,6 @@ static uint8_t mmc_host_init(struct mmc_device *dev)
 static uint32_t mmc_identify_card(struct sdhci_host *host, struct mmc_card *card)
 {
 	uint32_t mmc_return = 0;
-	uint32_t raw_csd[4];
 
 	/* Ask card to send its unique card identification (CID) number (CMD2) */
 	mmc_return = mmc_all_send_cid(host, card);
@@ -1173,7 +1173,6 @@ static uint32_t mmc_send_app_cmd(struct sdhci_host *host, struct mmc_card *card)
 uint32_t mmc_sd_card_init(struct sdhci_host *host, struct mmc_card *card)
 {
 	uint8_t i;
-	uint32_t mmc_ret;
 	struct mmc_command cmd;
 
 	memset((struct mmc_command *)&cmd, 0, sizeof(struct mmc_command));
@@ -2012,7 +2011,6 @@ uint32_t mmc_sdhci_erase(struct mmc_device *dev, uint32_t blk_addr, uint64_t len
 	uint32_t blk_end;
 	uint32_t num_erase_grps;
 	uint64_t erase_timeout = 0;
-	uint32_t *out;
 	struct mmc_card *card;
 
 

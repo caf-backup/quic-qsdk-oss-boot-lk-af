@@ -29,6 +29,8 @@
 #include <board.h>
 #include <target/board.h>
 #include <partition_parser.h>
+#include <stdlib.h>
+#include <libfdt.h>
 
 board_ipq806x_params_t *gboard_param;
 
@@ -46,7 +48,6 @@ static inline int gmac_cfg_is_valid(ipq_gmac_board_cfg_t *cfg)
 }
 
 unsigned int get_board_index(unsigned int machid);
-void ipq_configure_gpio(gpio_func_data_t *gpio, uint count);
 
 #define MSM_SDC1_BASE      0x12400000
 
@@ -1443,13 +1444,13 @@ void update_mac_addrs(void *fdt)
 		critical("Could not allocate sufficient memory to read MAC information\n");
 		return;
 	}
-	if (mmc_read(off, mac, BLOCK_SIZE)) {
+	if (mmc_read(off, (unsigned int *)mac, BLOCK_SIZE)) {
 		critical("Could not read ART partition\n");
 		return;
 	}
 
 	for (i = j = 0; i < IPQ_GMAC_COUNT; i++) {
-		char *p = &mac[j * 6];
+		unsigned char *p = &mac[j * 6];
 
 		sprintf(eth, "ethernet%d", i);
 

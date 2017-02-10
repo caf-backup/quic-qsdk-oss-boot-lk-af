@@ -75,6 +75,9 @@ int decrypt_scm(uint32_t ** img_ptr, uint32_t * img_len_ptr);
 int encrypt_scm(uint32_t ** img_ptr, uint32_t * img_len_ptr);
 int scm_call_atomic1(uint32_t svc, uint32_t cmd, uint32_t arg1);
 int scm_call_atomic2(uint32_t svc, uint32_t cmd, uint32_t arg1, uint32_t arg2);
+int scm_call(uint32_t svc_id, uint32_t cmd_id, const void *cmd_buf,
+			size_t cmd_len, void *resp_buf, size_t resp_len);
+
 
 #define SCM_SVC_FUSE                0x08
 #define FUSEPROV_SUCCESS		0x0
