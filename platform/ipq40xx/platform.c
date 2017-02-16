@@ -53,15 +53,15 @@ extern void msm_clocks_init(void);
 #define MSM_IOMAP_SIZE ((MSM_IOMAP_END - MSM_IOMAP_BASE)/MB)
 
 /* LK memory - cacheable, write through */
-#define LK_MEMORY         (MMU_MEMORY_TYPE_NORMAL_WRITE_THROUGH | \
+#define LK_MEMORY         (MMU_MEMORY_TYPE_NORMAL_WRITE_BACK_ALLOCATE | \
                            MMU_MEMORY_AP_READ_WRITE)
 
 /* Kernel region - cacheable, write through */
-#define KERNEL_MEMORY     (MMU_MEMORY_TYPE_NORMAL_WRITE_THROUGH   | \
+#define KERNEL_MEMORY     (MMU_MEMORY_TYPE_NORMAL_WRITE_BACK_ALLOCATE   | \
                            MMU_MEMORY_AP_READ_WRITE | MMU_MEMORY_XN)
 
 /* Scratch region - cacheable, write through */
-#define SCRATCH_MEMORY    (MMU_MEMORY_TYPE_NORMAL_WRITE_THROUGH   | \
+#define SCRATCH_MEMORY    (MMU_MEMORY_TYPE_NORMAL_WRITE_BACK_ALLOCATE   | \
                            MMU_MEMORY_AP_READ_WRITE | MMU_MEMORY_XN)
 
 /* Peripherals - non-shared device */
