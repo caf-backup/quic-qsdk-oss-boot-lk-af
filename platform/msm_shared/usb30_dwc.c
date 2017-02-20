@@ -1030,6 +1030,14 @@ static void dwc_event_handler_ep_ctrl_state_status_2(dwc_dev_t *dev,
 			 */
 			ASSERT(ep->state == EP_STATE_XFER_IN_PROG);
 
+			if (dev->is_test_mode)
+			{
+				/* Write DCTL register with test mode value */
+				dwc_device_enter_test_mode(dev);
+				dprintf(INFO, "Device entered test mode, please reset the device once testing is finished\n");
+				break;
+			}
+
 			ep->state = EP_STATE_INACTIVE;
 
 			/* check transfer status */
