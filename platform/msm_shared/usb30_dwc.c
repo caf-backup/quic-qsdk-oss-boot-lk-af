@@ -1589,7 +1589,7 @@ void dwc_device_add_ep(dwc_dev_t *dev, dwc_ep_t new_ep)
 
 	dwc_ep_t *ep = &dev->ep[index];
 
-	memset(ep, 0, sizeof(ep));
+	memset(ep, 0, sizeof(dwc_ep_t));
 
 	/* copy client specified params */
 
@@ -1605,9 +1605,9 @@ void dwc_device_add_ep(dwc_dev_t *dev, dwc_ep_t new_ep)
 	ASSERT(ep->trb);
 
 	/* clear out trb memory space. */
-	memset(ep->trb, 0, (ep->trb_count)*sizeof(ep->trb));
+	memset(ep->trb, 0, (ep->trb_count)*sizeof(dwc_trb_t));
 	arch_clean_invalidate_cache_range((addr_t) ep->trb,
-									  (ep->trb_count)*sizeof(ep->trb));
+									  (ep->trb_count)*sizeof(dwc_trb_t));
 
 	/* initialize dwc specified params */
 
