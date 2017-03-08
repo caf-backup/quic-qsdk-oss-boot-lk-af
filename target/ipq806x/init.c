@@ -30,6 +30,8 @@
  */
 
 #include <debug.h>
+#include <stdlib.h>
+#include <lib/console.h>
 #include <lib/ptable.h>
 #include <smem.h>
 #include <baseband.h>
@@ -59,7 +61,7 @@ extern void dmb(void);
  * platform_ce_type = CRYPTO_ENGINE_TYPE_HW : Hardware CE engine
  * Behavior is determined in the target code.
  */
-static crypto_engine_type platform_ce_type = CRYPTO_ENGINE_TYPE_SW;
+static crypto_engine_type platform_ce_type = CRYPTO_ENGINE_TYPE_HW;
 
 static void target_uart_init(void);
 #define DELAY 1
@@ -259,3 +261,33 @@ int target_mmc_bus_width()
 {
 	return MMC_BOOT_BUS_WIDTH_8_BIT;
 }
+
+extern void hash_find(unsigned char *addr, unsigned int size,
+		      unsigned char *digest, unsigned char auth_alg);
+#define uarg(x)         (argv[x].u)
+#define ullarg(x)       ((unsigned long long)argv[x].u)
+
+static int cmd_hash_find(int argc, const cmd_args *argv)
+{
+	unsigned msg_len, alg, i;
+	unsigned char digest_buf[32]={0};
+	unsigned char *msg_buf;
+
+	msg_buf = (unsigned char*)uarg(1);
+	msg_len = (unsigned)uarg(2);
+	alg = (unsigned)uarg(3);
+
+	hash_find(msg_buf, msg_len, digest_buf,  alg);
+	printf("\n");
+	for(i=0; i<32; i++)
+	{
+		printf("%02x",digest_buf[i]);
+	}
+	printf("\n");
+
+	return 0;
+}
+
+STATIC_COMMAND_START
+        { "hash", "Find Hash", &cmd_hash_find },
+STATIC_COMMAND_END(hash);

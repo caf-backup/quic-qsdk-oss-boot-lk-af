@@ -198,6 +198,9 @@ void ce_clock_init(void)
 	}
 	else
 	{
+		/* Enable CE1 CLK branch */
+		writel((0x10 | readl(CE1_HCLK_CTL_REG)), CE1_HCLK_CTL_REG);
+
 		/* Enable HCLK for CE1 */
 		clk_get_set_enable("ce1_pclk", 0, 1);
 

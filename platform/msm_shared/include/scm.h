@@ -95,11 +95,12 @@ int scm_call(uint32_t svc_id, uint32_t cmd_id, const void *cmd_buf,
 
 enum ap_ce_channel_type {
 AP_CE_REGISTER_USE = 0,
-AP_CE_ADM_USE = 1
+AP_CE_ADM_USE = 1,
+AP_CE_BAM_USE = 2
 };
 
 /* Apps CE resource. */
-#define TZ_RESOURCE_CE_AP  2
+#define TZ_RESOURCE_CE_AP  1
 
 uint8_t switch_ce_chn_cmd(enum ap_ce_channel_type channel);
 

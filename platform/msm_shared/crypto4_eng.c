@@ -29,6 +29,7 @@
 #include <string.h>
 #include <endian.h>
 #include <debug.h>
+#include <stdlib.h>
 #include <reg.h>
 #include <bits.h>
 #include <platform/iomap.h>
@@ -37,6 +38,23 @@
 #include <scm.h>
 #include <smem.h>
 #include <board.h>
+
+#if CRYPTO_BAM_SUPPORT
+#include <bam.h>
+#define CE1_BAM_BASE		0x18510000
+#define CE_FIFO_SIZE		512
+#define CE_READ_PIPE		1
+#define CE_WRITE_PIPE		0
+#define CE_READ_PIPE_LOCK_GRP	0
+#define CE_WRITE_PIPE_LOCK_GRP	0
+#define CE_ARRAY_SIZE		20
+#define CRYPTO_READ_PIPE_INDEX	1
+#define CRYPTO_WRITE_PIPE_INDEX	0
+#define CRYPTO_MAX_THRESHOLD	(32 * 1024)
+#define ADD_WRITE_DESC(bam, buf_addr, buf_size, flags) \
+	bam_add_desc(bam, CRYPTO_WRITE_PIPE_INDEX, buf_addr, buf_size, flags)
+static struct bam_instance bam;
+#endif
 
 extern void dsb(void);
 extern void ce_async_reset();
@@ -96,6 +114,96 @@ void crypto_eng_cleanup(void)
 
 }
 
+#if CRYPTO_BAM_SUPPORT
+static struct bam_desc *crypto_allocate_fifo(uint32_t size)
+{
+	struct bam_desc *ptr;
+
+	ptr = (struct bam_desc *) memalign(lcm(CACHE_LINE, BAM_DESC_SIZE),
+					   ROUNDUP(size * BAM_DESC_SIZE, CACHE_LINE));
+
+	if (ptr == NULL)
+		dprintf(CRITICAL, "Could not allocate fifo buffer\n");
+
+	return ptr;
+}
+
+static int crypto4_bam_init(void)
+{
+
+	uint32_t bam_ret ;
+
+	bam.base = CE1_BAM_BASE;
+	/* Read pipe parameter initializations. */
+	bam.pipe[CRYPTO_READ_PIPE_INDEX].pipe_num = CE_READ_PIPE;
+	/* System consumer */
+	bam.pipe[CRYPTO_READ_PIPE_INDEX].trans_type = BAM2SYS;
+	/* Set the descriptor FIFO start ptr */
+	bam.pipe[CRYPTO_READ_PIPE_INDEX].fifo.head =
+		crypto_allocate_fifo(CE_FIFO_SIZE);
+	/* Set the descriptor FIFO lengths */
+	bam.pipe[CRYPTO_READ_PIPE_INDEX].fifo.size = CE_FIFO_SIZE;
+
+	/* Write pipe parameter initializations.*/
+	bam.pipe[CRYPTO_WRITE_PIPE_INDEX].pipe_num = CE_WRITE_PIPE;
+	/* System producer */
+	bam.pipe[CRYPTO_WRITE_PIPE_INDEX].trans_type = SYS2BAM;
+	/* Write fifo uses the same fifo as read */
+	bam.pipe[CRYPTO_WRITE_PIPE_INDEX].fifo.head =
+		crypto_allocate_fifo(CE_FIFO_SIZE);
+	/* Set the descriptor FIFO lengths */
+	bam.pipe[CRYPTO_WRITE_PIPE_INDEX].fifo.size = CE_FIFO_SIZE;
+
+	/* Programs the minimum threshold for BAM transfer*/
+	bam.threshold = CRYPTO_MAX_THRESHOLD;
+
+	/* Align descriptor size to 512 bytes, BAM needs each buffer
+	 * address to be aligned with 512 bytes. The desc_len field has 16 bits,
+	 * 0xFE00 alignes the buffers to 512 bytes, same time uses the maximum
+	 * possible buffer size in each descriptor.
+	 */
+        bam.max_desc_len = 0xFE00;
+
+        bam.ee = 0;
+	/* Initialize MMC BAM */
+	bam_init(&bam);
+
+	/* Initialize BAM MMC read pipe */
+	bam_sys_pipe_init(&bam, CRYPTO_READ_PIPE_INDEX);
+
+	bam_ret = bam_pipe_fifo_init(&bam, CRYPTO_READ_PIPE_INDEX);
+
+	if (bam_ret)
+	{
+		dprintf(CRITICAL, "CRYPTO: BAM Read pipe fifo init error\n");
+		goto ce_bam_init_error;
+	}
+
+	/* Initialize BAM MMC write pipe */
+	bam_sys_pipe_init(&bam, CRYPTO_WRITE_PIPE_INDEX);
+
+	bam_ret = bam_pipe_fifo_init(&bam, CRYPTO_WRITE_PIPE_INDEX);
+
+	if (bam_ret)
+	{
+		dprintf(CRITICAL, "CRYPTO: BAM Write pipe fifo init error\n");
+		goto ce_bam_init_error;
+	}
+
+	bam_ret = CRYPTO_ERR_NONE;
+
+ce_bam_init_error:
+
+	return bam_ret;
+}
+
+static void crypto_wait_for_data(struct bam_instance *bam, uint32_t pipe_num)
+{
+	/* Read offset update for the circular FIFO */
+	bam_read_offset_update(bam, pipe_num);
+}
+
+#endif
 
 /*
  * Function to initialize the crypto engine for a new session. It enables the
@@ -109,9 +217,22 @@ void crypto_eng_init(void)
 	unsigned int val;
 
 	enum ap_ce_channel_type chn = AP_CE_REGISTER_USE;
+#if CRYPTO_BAM_SUPPORT
+	/* Setup BAM */
+	if (crypto4_bam_init() != CRYPTO_ERR_NONE)
+	{
+		dprintf(CRITICAL, "CRYPTO: BAM init error\n");
+		return;
+	}
+	/* Write basic config to CE.
+	 *  Note: This setting will be changed to be set from TZ.
+	 */
+	chn = AP_CE_BAM_USE;
+#endif
 	/* Make a SMC call to TZ to make CE1 use register interface for HLOS*/
 	val = switch_ce_chn_cmd(chn);
 	dprintf(INFO, "TZ channel swith returned %d\n", val);
+	return;
 }
 
 /*
@@ -128,6 +249,7 @@ crypto_set_sha_ctx(void *ctx_ptr, unsigned int bytes_to_write,
 	unsigned int iv_len = 0;
 	unsigned int *auth_iv;
 	unsigned int seg_cfg_val;
+	unsigned int total_bytes_to_write;
 
 	seg_cfg_val = SEG_CFG_AUTH_ALG_SHA;
 
@@ -156,8 +278,15 @@ crypto_set_sha_ctx(void *ctx_ptr, unsigned int bytes_to_write,
 	}
 
 	for (i = 0; i < iv_len; i++) {
+#if CRYPTO_BAM_SUPPORT
+		wr_ce(htonl(*(auth_iv + i)), CRYPTO_AUTH_IVn(i));
+#else
 		wr_ce(*(auth_iv + i), CRYPTO_AUTH_IVn(i));
+#endif
 	}
+
+	total_bytes_to_write = (bytes_to_write + (CRYPTO_BURST_LEN - 1))
+				& (~(CRYPTO_BURST_LEN - 1));
 	wr_ce(seg_cfg_val, CRYPTO_AUTH_SEG_CFG);
 
 	/* Typecast with crypto_SHA1_ctx because offset of auth_bytecnt in both
@@ -170,8 +299,9 @@ crypto_set_sha_ctx(void *ctx_ptr, unsigned int bytes_to_write,
 
 	wr_ce(bytes_to_write, CRYPTO_AUTH_SEG_SIZE);
 
-	wr_ce(bytes_to_write, CRYPTO_SEG_SIZE);
+	wr_ce(total_bytes_to_write, CRYPTO_SEG_SIZE);
 
+#ifndef CRYPTO_BAM_SUPPORT
 	/*
 	 * Ensure previous instructions (any writes to config registers)
 	 * are completed.
@@ -181,6 +311,7 @@ crypto_set_sha_ctx(void *ctx_ptr, unsigned int bytes_to_write,
 	dsb();
 
 	wr_ce(GOPROC_GO, CRYPTO_GOPROC);
+#endif
 
 	return;
 }
@@ -195,6 +326,7 @@ crypto_send_data(void *ctx_ptr, unsigned char *data_ptr,
 		 unsigned int buff_size, unsigned int bytes_to_write,
 		 unsigned int *ret_status)
 {
+#ifndef CRYPTO_BAM_SUPPORT
 	crypto_SHA1_ctx *sha1_ctx = (crypto_SHA1_ctx *) ctx_ptr;
 	unsigned int bytes_left = 0;
 	unsigned int i = 0;
@@ -327,6 +459,27 @@ crypto_send_data(void *ctx_ptr, unsigned char *data_ptr,
 		}
 	}
 	*ret_status = CRYPTO_ERR_NONE;
+#else
+	unsigned int bam_status;
+	unsigned int total_bytes_to_write;
+	total_bytes_to_write = (bytes_to_write + (CRYPTO_BURST_LEN - 1))
+				& (~((CRYPTO_BURST_LEN - 1)));
+	arch_clean_invalidate_cache_range((addr_t) data_ptr, bytes_to_write);
+	bam_status = ADD_WRITE_DESC(&bam, data_ptr, total_bytes_to_write,
+					BAM_DESC_NWD_FLAG | BAM_DESC_INT_FLAG
+					| BAM_DESC_EOT_FLAG);
+	if (bam_status)
+	{
+		dprintf(CRITICAL, "Crypto send data failed\n");
+		*ret_status = CRYPTO_ERR_FAIL;
+		goto CRYPTO_SEND_DATA_ERR;
+	}
+	dprintf(SPEW, "start CE engine\n");
+	wr_ce(GOPROC_GO, CRYPTO_GOPROC);
+	crypto_wait_for_data(&bam, CRYPTO_WRITE_PIPE_INDEX);
+	*ret_status = CRYPTO_ERR_NONE;
+CRYPTO_SEND_DATA_ERR:
+#endif
 	return;
 }
 
@@ -372,9 +525,9 @@ crypto_get_digest(unsigned char *digest_ptr, unsigned int *ret_status,
 		unsigned int auth_iv = rd_ce(CRYPTO_AUTH_IVn(i));
 
 		if (last) {
-			*((unsigned int *)digest_ptr + i) = htonl(auth_iv);
+			*((unsigned int *)digest_ptr + i) = (auth_iv);
 		} else {
-			*((unsigned int *)digest_ptr + i) = auth_iv;
+			*((unsigned int *)digest_ptr + i) = htonl(auth_iv);
 		}
 	}
 	*ret_status = CRYPTO_ERR_NONE;

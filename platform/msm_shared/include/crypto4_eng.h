@@ -72,5 +72,5 @@
 #define SEG_CFG_LAST				(1<<14)
 
 #define GOPROC_GO					1
-
+#define CRYPTO_BURST_LEN 64
 #endif
