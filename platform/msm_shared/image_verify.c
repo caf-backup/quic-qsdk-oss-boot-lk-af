@@ -32,9 +32,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-void hash_find(unsigned char *addr, unsigned int size,
-               unsigned char *digest, unsigned char auth_alg);
-
 /*
  * Returns -1 if decryption failed otherwise size of plain_text in bytes
  */

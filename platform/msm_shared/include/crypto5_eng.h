@@ -30,7 +30,7 @@
 #define __CRYPYO5_ENG_H__
 
 #include <bits.h>
-#include <bam.h>
+#include <bam_dma.h>
 #include <crypto_hash.h>
 
 /* CRYPTO registers */
@@ -80,10 +80,10 @@
 /* The value to be written to the GOPROC register.
  * Enable result dump option along with GO bit.
  */
-#define GOPROC_GO                       (1 | 1 << 2)
+#define GOPROC_GO                       (1)
 
-#define CRYPTO_READ_PIPE_INDEX          0
-#define CRYPTO_WRITE_PIPE_INDEX         1
+#define CRYPTO_READ_PIPE_INDEX          3
+#define CRYPTO_WRITE_PIPE_INDEX         2
 
 /* Burst length recommended by HPG for maximum throughput. */
 #define CRYPTO_BURST_LEN                64

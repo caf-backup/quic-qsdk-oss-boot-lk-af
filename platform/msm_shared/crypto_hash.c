@@ -34,14 +34,10 @@
 
 static crypto_SHA256_ctx g_sha256_ctx;
 static crypto_SHA1_ctx g_sha1_ctx;
-static unsigned char crypto_init_done = FALSE;
+static bool crypto_init_done;
 
 crypto_engine_type board_ce_type(void);
 extern void ce_clock_init(void);
-
-__WEAK void crypto_eng_cleanup()
-{
-}
 
 /*
  * Top level function which calculates SHAx digest with given data and size.
@@ -56,30 +52,29 @@ hash_find(unsigned char *addr, unsigned int size, unsigned char *digest,
 	crypto_result_type ret_val = CRYPTO_SHA_ERR_NONE;
 	crypto_engine_type platform_ce_type = board_ce_type();
 
-	if (auth_alg == 1) {
+	if (auth_alg == CRYPTO_AUTH_ALG_SHA1) {
 		if(platform_ce_type == CRYPTO_ENGINE_TYPE_SW)
 			/* Hardware CE is not present , use software hashing */
-			digest = (unsigned char *)SHA1(addr, size, digest);
+			digest = SHA1(addr, size, digest);
 		else if (platform_ce_type == CRYPTO_ENGINE_TYPE_HW)
 			ret_val = crypto_sha1(addr, size, digest);
 		else
 			ret_val = CRYPTO_SHA_ERR_FAIL;
-	} else if (auth_alg == 2) {
+	} else if (auth_alg == CRYPTO_AUTH_ALG_SHA256) {
 		if(platform_ce_type == CRYPTO_ENGINE_TYPE_SW)
 			/* Hardware CE is not present , use software hashing */
-			digest = (unsigned char *)SHA256(addr, size, digest);
+			digest = SHA256(addr, size, digest);
 		else if (platform_ce_type == CRYPTO_ENGINE_TYPE_HW)
 			ret_val = crypto_sha256(addr, size, digest);
 		else
 		ret_val = CRYPTO_SHA_ERR_FAIL;
 	}
+	else
+		ret_val = CRYPTO_SHA_ERR_FAIL;
 
 	if (ret_val != CRYPTO_SHA_ERR_NONE) {
 		dprintf(CRITICAL, "crypto_sha256 returns error %d\n", ret_val);
 	}
-
-	crypto_eng_cleanup();
-
 }
 
 /*
@@ -95,6 +90,15 @@ static void crypto_init(void)
 		crypto_init_done = TRUE;
 	}
 	crypto_eng_init();
+}
+
+/*
+ * Function to return if crypto is initialized
+ */
+
+bool crypto_initialized()
+{
+	return crypto_init_done;
 }
 
 /*
@@ -295,9 +299,9 @@ do_sha_update(void *ctx_ptr,
 
 	do {
 		if ((bytes_to_write - bytes_written) >
-		    CRYPTO_MAX_AUTH_BLOCK_SIZE) {
+			crypto_get_max_auth_blk_size()) {
 			/* Write CRYPTO_MAX_AUTH_BLOCK_SIZE bytes at a time to the CE */
-			tmp_bytes = CRYPTO_MAX_AUTH_BLOCK_SIZE;
+			tmp_bytes = crypto_get_max_auth_blk_size();
 			tmp_last = FALSE;
 
 			if (sha1_ctx->saved_buff_indx != 0) {
