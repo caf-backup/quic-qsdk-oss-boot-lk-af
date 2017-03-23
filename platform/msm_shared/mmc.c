@@ -3351,7 +3351,7 @@ static int cmd_mmc(int argc, const cmd_args *argv)
 	if (!strcmp(argv[1].str, "bread") ||
 	    !strcmp(argv[1].str, "bwrite") ||
 	    !strcmp(argv[1].str, "berase")) {
-		strcpy((char *)argv[1].str, argv[1].str + 1);
+		strlcpy((char *)argv[1].str, argv[1].str + 1, strlen(argv[1].str));
 		m = 1;
 	}
 
