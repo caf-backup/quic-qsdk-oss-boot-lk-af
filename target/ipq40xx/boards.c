@@ -1481,7 +1481,7 @@ void update_mac_addrs(void *fdt)
 	for (i = j = 0; i < IPQ_GMAC_COUNT; i++) {
 		unsigned char *p = &mac[j * 6];
 
-		sprintf(eth, "ethernet%d", i);
+		snprintf(eth, sizeof(eth), "ethernet%d", i);
 
 		if (!valid_mac_addr(p)) {
 			critical("Ignoring " MAC_ADDR_FMT " for %s\n",
