@@ -74,7 +74,8 @@ ifeq ($(PLATFORM),ipq40xx)
 			$(LOCAL_DIR)/qtimer_cp15.o \
 			$(LOCAL_DIR)/uart_dm.o \
 			$(LOCAL_DIR)/qgic.o \
-			$(LOCAL_DIR)/crypto4_eng.o \
+			$(LOCAL_DIR)/crypto5_eng.o \
+			$(LOCAL_DIR)/crypto5_wrapper.o \
 			$(LOCAL_DIR)/crypto_hash.o \
 			$(LOCAL_DIR)/certificate.o \
 			$(LOCAL_DIR)/image_verify.o \
@@ -85,7 +86,7 @@ ifeq ($(PLATFORM),ipq40xx)
 			$(LOCAL_DIR)/clock_pll.o \
 			$(LOCAL_DIR)/board.o \
 			$(LOCAL_DIR)/display.o \
-			$(LOCAL_DIR)/bam.o \
+			$(LOCAL_DIR)/bam_dma.o \
 			$(LOCAL_DIR)/fuse_blower.o
 endif
 

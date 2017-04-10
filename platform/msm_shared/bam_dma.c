@@ -26,7 +26,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bam.h>
+#include <bam_dma.h>
 #include <reg.h>
 #include <debug.h>
 #include <stdlib.h>
@@ -405,7 +405,7 @@ int bam_add_one_desc(struct bam_instance *bam,
                      unsigned int pipe_num,
                      unsigned char* data_ptr,
                      uint32_t len,
-                     uint8_t flags)
+                     uint16_t flags)
 {
 
 	struct bam_desc *desc = bam->pipe[pipe_num].fifo.current;
@@ -454,7 +454,6 @@ int bam_add_one_desc(struct bam_instance *bam,
 	desc->flags    = flags;
 	desc->addr     = (uint32_t)data_ptr;
 	desc->size     = (uint16_t)len;
-	desc->reserved = 0;
 
 	arch_clean_invalidate_cache_range((addr_t) desc, BAM_DESC_SIZE);
 

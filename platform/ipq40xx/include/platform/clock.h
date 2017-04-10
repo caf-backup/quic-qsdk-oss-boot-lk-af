@@ -897,4 +897,5 @@ void clock_usb30_init(void);
 void clock_config_uart_dm(uint8_t id);
 void clock_config_mmc(uint32_t, uint32_t);
 void clock_init_mmc(uint32_t id);
+void ce_clock_init(void);
 #endif

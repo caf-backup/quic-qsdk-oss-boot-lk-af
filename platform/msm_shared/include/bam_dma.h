@@ -26,12 +26,13 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __PLATFORM_MSM_SHARED_BAM_H
-#define __PLATFORM_MSM_SHARED_BAM_H
+#ifndef __PLATFORM_MSM_SHARED_BAM_DMA_H
+#define __PLATFORM_MSM_SHARED_BAM_DMA_H
 
 #include <stdint.h>
 #include <compiler.h>
 
+#define BAM_V170 1
 #if BAM_V170
 #define BAM_IRQ_SRCS(x, n)              (0x00003000 + 0x1000 * (n) + (x))
 #define BAM_IRQ_SRCS_MSK(x, n)          (0x00003004 + 0x1000 * (n) + (x))
@@ -183,8 +184,7 @@ enum bam_type {
 struct bam_desc {
 	uint32_t addr;
 	uint16_t size;
-	uint8_t reserved;
-	uint8_t flags;
+	uint16_t flags;
 } __PACKED;
 
 struct bam_desc_fifo {
@@ -235,7 +235,7 @@ struct bam_instance {
 	enum bam_type type;
 	enum bam_mode mode;
 	uint8_t num_of_pipes;
-	struct bam_pipe pipe[3];
+	struct bam_pipe pipe[4];
 	uint16_t threshold;
 	uint32_t ee;
 	uint16_t max_desc_len;
@@ -268,7 +268,7 @@ int bam_add_one_desc(struct bam_instance *bam,
                      unsigned int pipe_num,
                      unsigned char*,
                      uint32_t len,
-                     uint8_t flags);
+                     uint16_t flags);
 void bam_sys_gen_event(struct bam_instance *bam,
                        uint8_t pipe_num,
                        unsigned int num_desc);

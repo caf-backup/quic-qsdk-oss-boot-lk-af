@@ -45,11 +45,6 @@ void crypto_eng_cleanup(void)
 	crypto5_cleanup(&dev);
 }
 
-void ce_clock_init(void)
-{
-	/* Clock init is done during crypto_init. */
-}
-
 void crypto_eng_reset(void)
 {
 	/* Reset tied in with the clock init. */
