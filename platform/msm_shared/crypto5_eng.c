@@ -37,6 +37,9 @@
 #include <platform/clock.h>
 #include <crypto5_eng.h>
 
+#define BAM_MAX_DESC_LEN	0xFE00
+
+#define CRYPTO_REG_ACCESS
 #define CLEAR_STATUS(dev)                                crypto_write_reg(&dev->bam, CRYPTO_STATUS(dev->base), 0, BAM_DESC_UNLOCK_FLAG)
 #define CONFIG_WRITE(dev, val)                           crypto_write_reg(&dev->bam, CRYPTO_CONFIG(dev->base), val, BAM_DESC_LOCK_FLAG)
 #define REG_WRITE(dev, addr, val)                        crypto_write_reg(&dev->bam, addr, val, 0)
@@ -120,7 +123,7 @@ static void crypto_wait_for_cmd_exec(struct bam_instance *bam_core,
 static void crypto_wait_for_data(struct bam_instance *bam, uint32_t pipe_num)
 {
 	/* Wait for the descriptors to be processed */
-	bam_wait_for_interrupt(bam, pipe_num, P_PRCSD_DESC_EN_MASK);
+	udelay(250000);
 
 	/* Read offset update for the circular FIFO */
 	bam_read_offset_update(bam, pipe_num);
@@ -132,11 +135,11 @@ static uint32_t crypto_write_reg(struct bam_instance *bam_core,
 								 uint8_t flags)
 {
 	uint32_t ret = 0;
-	struct cmd_element cmd_list_ptr;
 
 #ifdef CRYPTO_REG_ACCESS
 	writel(val, reg_addr);
 #else
+	struct cmd_element cmd_list_ptr;
 	ret = (uint32_t)bam_add_cmd_element(&cmd_list_ptr, reg_addr, val, CE_WRITE_TYPE);
 
 	/* Enqueue the desc for the above command */
@@ -157,7 +160,6 @@ static uint32_t crypto_write_reg(struct bam_instance *bam_core,
 	crypto_wait_for_cmd_exec(bam_core, 1, CRYPTO_WRITE_PIPE_INDEX);
 #endif
 
-crypto_read_reg_err:
 	return ret;
 }
 
@@ -239,7 +241,6 @@ crypto_bam_init_err:
 
 static void crypto_reset(struct crypto_dev *dev)
 {
-	clock_config_ce(dev->instance);
 }
 
 void crypto5_init_params(struct crypto_dev *dev, struct crypto_init_params *params)
@@ -271,7 +272,7 @@ void crypto5_init_params(struct crypto_dev *dev, struct crypto_init_params *para
 	dev->bam.ee        = params->bam_ee;
 
 	/* A H/W bug on Crypto 5.0.0 enforces a rule that the desc lengths must be burst aligned. */
-	dev->bam.max_desc_len = ROUNDDOWN(BAM_NDP_MAX_DESC_DATA_LEN, CRYPTO_BURST_LEN);
+	dev->bam.max_desc_len = BAM_MAX_DESC_LEN;
 
 	dev->dump           = crypto_allocate_dump_buffer();
 	dev->ce_array       = crypto_allocate_ce_array(params->num_ce);
@@ -283,9 +284,6 @@ void crypto5_init(struct crypto_dev *dev)
 {
 	uint32_t config = CRYPTO_RESET_CONFIG
 			| (dev->bam.pipe[CRYPTO_READ_PIPE_INDEX].pipe_num >> 1) << PIPE_SET_SELECT_SHIFT;
-
-	/* Configure CE clocks. */
-	clock_config_ce(dev->instance);
 
 	/* Setup BAM */
 	if (crypto_bam_init(dev) != CRYPTO_ERR_NONE)
@@ -437,7 +435,7 @@ static void crypto5_set_auth_cfg(struct crypto_dev *dev, uint8_t **buffer,
          * skip (data_ptr - buffer) number of bytes.
          * This bug is fixed in 5.1.0 onwards.*/
 
-	if(minor_ver == 0)
+	if(minor_ver == 3)
 	{
 		if ((uint32_t) data_ptr & (CRYPTO_BURST_LEN - 1))
 		{
@@ -466,7 +464,6 @@ static void crypto5_set_auth_cfg(struct crypto_dev *dev, uint8_t **buffer,
 	REG_WRITE_QUEUE(dev, CRYPTO_AUTH_SEG_START(dev->base), auth_seg_start);
 	REG_WRITE_QUEUE(dev, CRYPTO_AUTH_SEG_SIZE(dev->base), bytes_to_write);
 	REG_WRITE_QUEUE(dev, CRYPTO_SEG_SIZE(dev->base), *total_bytes_to_write);
-	REG_WRITE_QUEUE(dev, CRYPTO_GOPROC(dev->base), GOPROC_GO);
 	REG_WRITE_QUEUE_DONE(dev, BAM_DESC_LOCK_FLAG | BAM_DESC_INT_FLAG);
 	REG_WRITE_EXEC(&dev->bam, 1, CRYPTO_WRITE_PIPE_INDEX);
 }
@@ -504,25 +501,9 @@ uint32_t crypto5_send_data(struct crypto_dev *dev,
 		goto CRYPTO_SEND_DATA_ERR;
 	}
 
-	arch_clean_invalidate_cache_range((addr_t) (dev->dump), sizeof(struct output_dump));
-
-	bam_status = ADD_READ_DESC(&dev->bam,
-							   (unsigned char *)PA((addr_t)(dev->dump)),
-							   sizeof(struct output_dump),
-							   BAM_DESC_INT_FLAG);
-
-	if (bam_status)
-	{
-		dprintf(CRITICAL, "Crypto send data failed\n");
-		ret_status = CRYPTO_ERR_FAIL;
-		goto CRYPTO_SEND_DATA_ERR;
-	}
+	REG_WRITE_QUEUE(dev, CRYPTO_GOPROC(dev->base), GOPROC_GO);
 
 	crypto_wait_for_data(&dev->bam, CRYPTO_WRITE_PIPE_INDEX);
-
-	crypto_wait_for_data(&dev->bam, CRYPTO_READ_PIPE_INDEX);
-
-	arch_clean_invalidate_cache_range((addr_t) (dev->dump), sizeof(struct output_dump));
 
 	ret_status = CRYPTO_ERR_NONE;
 
@@ -558,11 +539,9 @@ uint32_t crypto5_get_digest(struct crypto_dev *dev,
     uint32_t auth_iv;
 
 	/* Check status register for errors. */
-    ce_err_bmsk = (AXI_ERR | SW_ERR | HSD_ERR);
-    ce_status = BE32(dev->dump->status);
-
-	/* Check status register for errors. */
-	ce_status2 = BE32(dev->dump->status2);
+	ce_err_bmsk = (AXI_ERR | SW_ERR | HSD_ERR);
+	ce_status = readl(CRYPTO_STATUS(dev->base));
+	ce_status2 = readl(CRYPTO_STATUS2(dev->base));
 
     if ((ce_status & ce_err_bmsk) || (ce_status2 & AXI_EXTRA))
 	{
@@ -582,10 +561,9 @@ uint32_t crypto5_get_digest(struct crypto_dev *dev,
         digest_len = SHA256_INIT_VECTOR_SIZE;
     }
 
-    /* Retrieve digest from CRYPTO */
     for (i = 0; i < digest_len; i++)
     {
-        auth_iv = (dev->dump->auth_iv[i]);
+        auth_iv = readl(CRYPTO_AUTH_IVn(dev->base, i));
 
        *((unsigned int *)digest_ptr + i) = auth_iv;
     }

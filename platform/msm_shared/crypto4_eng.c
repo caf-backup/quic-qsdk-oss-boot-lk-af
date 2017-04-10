@@ -544,3 +544,8 @@ void crypto_get_ctx(void *ctx_ptr)
 	    rd_ce(CRYPTO_AUTH_BYTECNTn(1));
 	return;
 }
+
+uint32_t crypto_get_max_auth_blk_size(void)
+{
+	return CRYPTO_MAX_AUTH_BLOCK_SIZE;
+}

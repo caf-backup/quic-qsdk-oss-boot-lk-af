@@ -30,6 +30,8 @@
  */
 
 #include <debug.h>
+#include <stdlib.h>
+#include <lib/console.h>
 #include <lib/ptable.h>
 #include <smem.h>
 #include <baseband.h>
@@ -59,6 +61,17 @@
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID 	0x9
 #define SCM_CMD_TZ_FORCE_DLOAD_ID 		0x10
 
+#define CE1_INSTANCE		1
+#define CE_EE			0
+#define CE_FIFO_SIZE		512
+#define CE_READ_PIPE		3
+#define CE_WRITE_PIPE		2
+#define CE_READ_PIPE_LOCK_GRP	0
+#define CE_WRITE_PIPE_LOCK_GRP	0
+#define CE_ARRAY_SIZE		20
+#define MSM_CE1_BAM_BASE	0x08E04000
+#define MSM_CE1_BASE		0x08E3A000
+
 extern struct mmc_card *get_mmc_card();
 
 extern void dmb(void);
@@ -70,9 +83,10 @@ extern void dmb(void);
  * platform_ce_type = CRYPTO_ENGINE_TYPE_HW : Hardware CE engine
  * Behavior is determined in the target code.
  */
-static crypto_engine_type platform_ce_type = CRYPTO_ENGINE_TYPE_SW;
+static crypto_engine_type platform_ce_type = CRYPTO_ENGINE_TYPE_HW;
 
 static void target_uart_init(void);
+static void target_crypto_init_params();
 #define DELAY 1
 
 static void set_sdc_power_ctrl(void){}
@@ -157,6 +171,7 @@ void target_init(void)
 		dprintf(CRITICAL, "Error reading the partition table info\n");
 		ASSERT(0);
 	}
+	target_crypto_init_params();
 }
 
 unsigned board_machtype(void)
@@ -332,3 +347,85 @@ int target_mmc_bus_width()
 {
 	return MMC_BOOT_BUS_WIDTH_8_BIT;
 }
+
+struct crypto_bam_pipes
+{
+	uint8_t read_pipe;
+	uint8_t write_pipe;
+	uint8_t read_pipe_grp;
+	uint8_t write_pipe_grp;
+};
+
+struct crypto_init_params
+{
+	uint32_t                crypto_base;
+	uint32_t                crypto_instance;
+	uint32_t                bam_base;
+	uint32_t                bam_ee;
+	uint32_t                num_ce;
+	uint32_t                read_fifo_size;
+	uint32_t                write_fifo_size;
+	uint8_t                 do_bam_init;
+	struct crypto_bam_pipes pipes;
+};
+
+extern void crypto_init_params(struct crypto_init_params * params);
+
+/* Set up params for h/w CE. */
+static void target_crypto_init_params()
+{
+	struct crypto_init_params ce_params;
+
+	/* Set up base addresses and instance. */
+	ce_params.crypto_instance  = CE1_INSTANCE;
+	ce_params.crypto_base      = MSM_CE1_BASE;
+	ce_params.bam_base         = MSM_CE1_BAM_BASE;
+
+	/* Set up BAM config. */
+	ce_params.bam_ee               = CE_EE;
+	ce_params.pipes.read_pipe      = CE_READ_PIPE;
+	ce_params.pipes.write_pipe     = CE_WRITE_PIPE;
+	ce_params.pipes.read_pipe_grp  = CE_READ_PIPE_LOCK_GRP;
+	ce_params.pipes.write_pipe_grp = CE_WRITE_PIPE_LOCK_GRP;
+
+	/* Assign buffer sizes. */
+	ce_params.num_ce           = CE_ARRAY_SIZE;
+	ce_params.read_fifo_size   = CE_FIFO_SIZE;
+	ce_params.write_fifo_size  = CE_FIFO_SIZE;
+
+	/* BAM is initialized by TZ for this platform.
+	 * Do not do it again as the initialization address space
+	 * is locked.
+	 */
+	ce_params.do_bam_init      = 1;
+
+	crypto_init_params(&ce_params);
+}
+
+#define uarg(x)		(argv[x].u)
+#define ullarg(x)	((unsigned long long)argv[x].u)
+
+static int cmd_hash_find(int argc, const cmd_args *argv)
+{
+	unsigned msg_len, alg, i;
+	unsigned char digest_buf[32]={0};
+	unsigned char *msg_buf;
+
+	msg_buf = (unsigned char*)uarg(1);
+	msg_len = (unsigned)uarg(2);
+	alg = (unsigned)uarg(3);
+
+	hash_find(msg_buf, msg_len, digest_buf, alg);
+	printf("\n");
+	for(i=0; i<32; i++)
+	{
+		printf("%02x",digest_buf[i]);
+	}
+	printf("\n");
+
+	return 0;
+}
+
+STATIC_COMMAND_START
+        { "hash", "Find Hash", &cmd_hash_find },
+STATIC_COMMAND_END(hash);
