@@ -199,12 +199,18 @@ int bam_pipe_fifo_init(struct bam_instance *bam,
 	}
 
 	/* Check if fifo start is 8-byte alligned */
-	ASSERT(!((uint32_t)PA((addr_t)bam->pipe[pipe_num].fifo.head & 0x7)));
+	if ((addr_t)bam->pipe[pipe_num].fifo.head & 0x7) {
+		dprintf(CRITICAL, "bam: fifo start is not 8-byte alligned\n");
+		return BAM_RESULT_FAILURE;
+	}
 
 	/* Check if fifo size is a power of 2.
 	 * The circular fifo logic in lk expects this.
 	 */
-	ASSERT(ispow2(bam->pipe[pipe_num].fifo.size));
+	if (!(ispow2(bam->pipe[pipe_num].fifo.size))) {
+		dprintf(CRITICAL, "bam: fifo size is  not power of 2\n");
+		return BAM_RESULT_FAILURE;
+	}
 
 	bam->pipe[pipe_num].fifo.current = bam->pipe[pipe_num].fifo.head;
 
