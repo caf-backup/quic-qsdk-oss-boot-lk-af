@@ -897,4 +897,5 @@ struct pll_rate {
 void clock_config_uart_dm(uint8_t id);
 void clock_init_mmc(uint32_t id);
 void clock_config_mmc(uint32_t, uint32_t);
+void clock_config_i2c(uint8_t id, uint32_t freq);
 #endif
