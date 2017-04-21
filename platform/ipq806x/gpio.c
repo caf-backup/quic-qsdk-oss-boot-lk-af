@@ -83,21 +83,20 @@ void gpio_config_uart_dm(uint8_t ignore)
 
 void gpio_config_i2c(uint8_t id)
 {
-	switch (id) {
-	case GSBI_ID_1:
-		writel(0x2, GSBIn_UART_I2C_SEL(0));
-		gpio_tlmm_config(0, 4, GPIO_OUTPUT, GPIO_PULL_UP,
-					GPIO_2MA, GPIO_OE_ENABLE);
-		gpio_tlmm_config(1, 4, GPIO_OUTPUT, GPIO_PULL_UP,
-					GPIO_2MA, GPIO_OE_ENABLE);
-		break;
-	case GSBI_ID_3:
-		gpio_tlmm_config(9, 1, GPIO_OUTPUT, GPIO_PULL_UP,
-					GPIO_16MA, GPIO_OE_ENABLE);
-		gpio_tlmm_config(8, 1, GPIO_OUTPUT, GPIO_PULL_UP,
-					GPIO_16MA, GPIO_OE_ENABLE);
-		break;
-	default:
-		dprintf(CRITICAL, "gpio_config_i2c(%hhu)\n", id);
-	}
+       switch (id) {
+       case GSBI_ID_1:
+               gpio_tlmm_config(54, 1, GPIO_OUTPUT, GPIO_NO_PULL,
+                                       GPIO_12MA, GPIO_OE_ENABLE);
+               gpio_tlmm_config(53, 1, GPIO_OUTPUT, GPIO_NO_PULL,
+                                       GPIO_12MA, GPIO_OE_ENABLE);
+               break;
+       case GSBI_ID_2:
+               gpio_tlmm_config(25, 1, GPIO_OUTPUT, GPIO_NO_PULL,
+                                       GPIO_12MA, GPIO_OE_ENABLE);
+               gpio_tlmm_config(24, 1, GPIO_OUTPUT, GPIO_NO_PULL,
+                                       GPIO_12MA, GPIO_OE_ENABLE);
+               break;
+       default:
+               dprintf(CRITICAL, "gpio_config_i2c(%hhu)\n", id);
+       }
 }
