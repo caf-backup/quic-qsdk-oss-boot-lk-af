@@ -46,8 +46,8 @@
 #define USB2_IRQ                (GIC_SPI_START + 141)
 #define USB1_IRQ                (GIC_SPI_START + 142)
 
-#define GSBI_QUP_IRQ(id)       ((id) <= 8 ? (GIC_SPI_START + 145 + 2*((id))) : \
-                                            (GIC_SPI_START + 187 + 2*((id)-8)))
+#define GSBI_QUP_IRQ(id)       ((id) >= 3 ? (GIC_SPI_START + 149 + 2*((id))) : \
+                                            (GIC_SPI_START + 192 + 2*((id))))
 
 /* Retrofit universal macro names */
 #define INT_USB_HS                  USB1_HS_IRQ
