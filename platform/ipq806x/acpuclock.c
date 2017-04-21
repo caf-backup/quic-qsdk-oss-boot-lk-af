@@ -133,7 +133,7 @@ void clock_config_i2c(uint8_t id, uint32_t freq)
 	char gsbi_p_clk_id[64];
 
 	snprintf(gsbi_qup_clk_id, 64,"gsbi%u_qup_clk", id);
-	clk_get_set_enable(gsbi_qup_clk_id, 24000000, 1);
+	clk_get_set_enable(gsbi_qup_clk_id, freq, 1);
 
 	snprintf(gsbi_p_clk_id, 64,"gsbi%u_pclk", id);
 	clk_get_set_enable(gsbi_p_clk_id, 0, 1);
