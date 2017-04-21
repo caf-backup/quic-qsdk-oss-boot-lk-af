@@ -146,9 +146,8 @@ static inline void qup_print_status(struct qup_i2c_dev *dev)
 }
 #endif
 
-static irqreturn_t qup_i2c_interrupt(uint8_t gsbi_id)
+static irqreturn_t qup_i2c_interrupt(struct qup_i2c_dev *dev)
 {
-	struct qup_i2c_dev *dev = dev_addr[gsbi_id];
 	if (!dev) {
 		dprintf(CRITICAL,
 			"dev_addr is NULL, that means i2c_qup_init failed...\n");
@@ -721,7 +720,7 @@ struct qup_i2c_dev *qup_i2c_init(uint8_t gsbi_id, unsigned clk_freq,
 	dev->clk_ctl = 0;
 
 	/* Register the GSBIn QUP IRQ */
-	register_int_handler(dev->qup_irq, (int_handler) qup_i2c_interrupt, gsbi_id);
+	register_int_handler(dev->qup_irq, (int_handler) qup_i2c_interrupt, (void *)dev);
 
 	/* Then disable it */
 	mask_interrupt(dev->qup_irq);
