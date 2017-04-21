@@ -31,7 +31,6 @@
 
 #include <debug.h>
 #include <stdlib.h>
-#include <lib/console.h>
 #include <lib/ptable.h>
 #include <smem.h>
 #include <baseband.h>
@@ -40,6 +39,7 @@
 #include <platform/timer.h>
 #include <platform/gpio.h>
 #include <reg.h>
+#include <i2c_qup.h>
 #include <gsbi.h>
 #include <target.h>
 #include <platform.h>
@@ -48,11 +48,14 @@
 #include <board.h>
 #include <target/board.h>
 #include <scm.h>
+#include <string.h>
 
 #define APPS_DLOAD_MAGIC1	0xE47B337D
 #define APPS_DLOAD_MAGIC2	0x0501CAB0
 
 extern void dmb(void);
+static struct qup_i2c_dev *dev = NULL;
+static int i2c_qup_initialized;
 
 /* Setting this variable to different values defines the
  * behavior of CE engine:
@@ -100,6 +103,67 @@ void ipq_nss_init(void)
 	writel(0, GMACSEC_CORE_RESET(3));
 
 	writel(0, GMAC_AHB_RESET);
+}
+
+uint8_t i2c_read_reg(uint8_t addr, uint8_t reg, uint8_t *val, unsigned short len)
+{
+	uint8_t ret = 0;
+	unsigned char buf[2];
+
+	buf[0] = (reg & 0xFF00) >> 8;
+	buf[1] = (reg & 0xFF);
+
+	if (dev) {
+		struct i2c_msg rd_buf[] = {
+			{addr, I2C_M_WR, 2, buf},
+			{addr, I2C_M_RD, len, val}
+		};
+
+		int err = qup_i2c_xfer(dev, rd_buf, 2);
+		if (err < 0) {
+			dprintf(INFO, "Read reg %x failed\n", err);
+			return err;
+		}
+	} else {
+		dprintf(INFO, "eeprom_read_reg: qup_i2c_init() failed\n");
+		return -1;
+	}
+
+	return ret;
+}
+
+void i2c_write_reg(uint8_t addr, uint8_t reg, uint8_t *val, unsigned short len)
+{
+	if (dev) {
+		unsigned char *buf;
+
+		buf = malloc(len + 2);
+		buf[0] = (reg & 0xFF00) >> 8;
+		buf[1] = (reg & 0xFF);
+		memcpy(buf+2, val, len);
+		struct i2c_msg msg_buf[] = {
+			{addr, I2C_M_WR, len+2, buf},
+		};
+
+		int err = qup_i2c_xfer(dev, msg_buf, 1);
+		if (err < 0) {
+			dprintf(INFO, "Write reg %x failed\n", reg);
+			free(buf);
+			return;
+		}
+		free(buf);
+	} else
+		dprintf(INFO, "eeprom_write_reg: qup_i2c_init() failed\n");
+}
+
+void i2c_ipq806x_init(uint8_t gsbi_id)
+{
+	dev = qup_i2c_init(gsbi_id, 100000, 25600000);
+	if(!dev) {
+		dprintf(INFO, "ipq806x qup_i2c_init() failed\n");
+		return;
+	}
+	i2c_qup_initialized = 1;
 }
 
 void target_init(void)
@@ -267,6 +331,18 @@ extern void hash_find(unsigned char *addr, unsigned int size,
 #define uarg(x)         (argv[x].u)
 #define ullarg(x)       ((unsigned long long)argv[x].u)
 
+#if WITH_LIB_CONSOLE
+
+#include <lib/console.h>
+
+static int cmd_hash_find(int argc, const cmd_args *argv);
+static int cmd_i2c(int argc, const cmd_args *argv);
+
+STATIC_COMMAND_START
+	{ "i2c", "i2c probe/read/write commands", &cmd_i2c },
+        { "hash", "Find Hash", &cmd_hash_find },
+STATIC_COMMAND_END(i2c_hash);
+
 static int cmd_hash_find(int argc, const cmd_args *argv)
 {
 	unsigned msg_len, alg, i;
@@ -288,6 +364,70 @@ static int cmd_hash_find(int argc, const cmd_args *argv)
 	return 0;
 }
 
-STATIC_COMMAND_START
-        { "hash", "Find Hash", &cmd_hash_find },
-STATIC_COMMAND_END(hash);
+static int cmd_i2c(int argc, const cmd_args *argv)
+{
+	int err;
+
+	if (strcmp(argv[1].str, "probe")) {
+		if (argc < 5) {
+			printf("not enough arguments\n");
+usage:
+			printf("%s read <ddr addr> <i2c address> <register> <reg_len>\n", argv[0].str);
+			printf("%s write <ddr addr> <i2c address> <register> <reg_len>\n", argv[0].str);
+			return -1;
+		}
+	}
+
+
+	if (!strcmp(argv[1].str, "probe")) {
+		unsigned int j;
+		uint8_t val;
+
+		if (!i2c_qup_initialized)
+			i2c_ipq806x_init(GSBI_ID_2);
+
+		for (j = 0; j < 128; j++) {
+			if (i2c_read_reg(j, 0, &val, 1) == 0)
+				printf(" %02X", j);
+		}
+		dprintf(INFO, "\n");
+	} else if (!strcmp(argv[1].str, "read")) {
+		unsigned *ptr = (unsigned *)argv[2].u;
+		uint8_t i2c_address = argv[3].u;
+		uint8_t reg = argv[4].u;
+		unsigned int reg_len = argv[5].u;
+
+		uint8_t *buf = NULL;
+
+		memset(ptr, 0x0, reg_len);
+		buf = malloc(reg_len);
+		memset(buf, 0x0, reg_len);
+
+		err = i2c_read_reg(i2c_address, reg, buf, reg_len);
+		if (err) {
+			dprintf(INFO, "error in read_reg %d\n", err);
+		} else {
+			memcpy(ptr, buf, reg_len);
+		}
+		free(buf);
+		dprintf(INFO, "\n");
+	} else if (!strcmp(argv[1].str, "write")) {
+		unsigned *ptr = (unsigned *)argv[2].u;
+		uint8_t i2c_address = argv[3].u;
+		uint8_t reg = argv[4].u;
+		unsigned int reg_len = argv[5].u;
+		uint8_t *buf = NULL;
+
+		buf = malloc(reg_len);
+		memcpy(buf, ptr, reg_len);
+		i2c_write_reg(i2c_address, reg, buf, reg_len);
+		free(buf);
+		dprintf(INFO, "\n");
+	} else {
+		dprintf(INFO, "unrecognized subcommand\n");
+		goto usage;
+	}
+
+	return 0;
+}
+#endif
