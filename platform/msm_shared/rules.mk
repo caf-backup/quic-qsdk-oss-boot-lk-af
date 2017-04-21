@@ -92,6 +92,7 @@ endif
 
 ifeq ($(PLATFORM),ipq806x)
 	OBJS += $(LOCAL_DIR)/uart_dm.o \
+			$(LOCAL_DIR)/i2c_qup.o \
 			$(LOCAL_DIR)/qgic.o \
 			$(LOCAL_DIR)/crypto4_eng.o \
 			$(LOCAL_DIR)/crypto_hash.o \
