@@ -33,6 +33,7 @@
 #ifndef _PLATFORM_IPQ806X_IOMAP_H_
 #define _PLATFORM_IPQ806X_IOMAP_H_
 
+#define CONFIG_IPQ806X_I2C
 #define MSM_IOMAP_BASE			0x00100000
 #define MSM_IOMAP_END			0x28000000
 
@@ -97,6 +98,14 @@
 #define GPIO_CONFIG_ADDR(x)		(TLMM_BASE_ADDR + 0x1000 + (x)*0x10)
 #define GPIO_IN_OUT_ADDR(x)		(TLMM_BASE_ADDR + 0x1004 + (x)*0x10)
 #define GSBIn_UART_I2C_SEL(x)		(TLMM_BASE_ADDR + 0x20D0 + (x)*0x4)
+
+
+#define GSBI_BASE(id)         ((id) <= 2 ? (0x12440000 + (0x40000 * ((id)-1))) : \
+                                           (0x16200000 + (((id)-3) << 20)))
+#define QUP_BASE(id)          ((id) <= 2 ? (GSBI_BASE(id) + 0x20000) : \
+						(GSBI_BASE(id) + 0x80000))
+#define I2C_GSBI2_BASE          UART_GSBI2_BASE
+#define I2C_GSBI4_BASE          UART_GSBI4_BASE
 
 #define UART1_DM_BASE			0x12450000
 #define UART_GSBI1_BASE			0x12440000
