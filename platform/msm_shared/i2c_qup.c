@@ -163,7 +163,7 @@ static irqreturn_t qup_i2c_interrupt(struct qup_i2c_dev *dev)
 
 	if (status & I2C_STATUS_ERROR_MASK) {
 		dprintf(CRITICAL, "QUP: I2C status flags :0x%x \n", status);
-		err = -status;
+		err = status;
 		/* Clear Error interrupt if it's a level triggered interrupt */
 		if (dev->num_irqs == 1) {
 			writel(QUP_RESET_STATE, dev->qup_base + QUP_STATE);
@@ -608,6 +608,10 @@ int qup_i2c_xfer(struct qup_i2c_dev *dev, struct i2c_msg msgs[], int num)
 			}
 
 			qup_print_status(dev);
+
+			/* This delay is required for the block mode */
+			udelay(10);
+
 			if (dev->err) {
 				if (dev->err & QUP_I2C_NACK_FLAG) {
 					dprintf(CRITICAL,

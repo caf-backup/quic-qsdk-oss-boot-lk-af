@@ -158,7 +158,7 @@ void i2c_write_reg(uint8_t addr, uint8_t reg, uint8_t *val, unsigned short len)
 
 void i2c_ipq806x_init(uint8_t gsbi_id)
 {
-	dev = qup_i2c_init(gsbi_id, 100000, 25600000);
+	dev = qup_i2c_init(gsbi_id, 200000, 25600000);
 	if(!dev) {
 		dprintf(INFO, "ipq806x qup_i2c_init() failed\n");
 		return;
@@ -418,6 +418,10 @@ usage:
 		unsigned int reg_len = argv[5].u;
 		uint8_t *buf = NULL;
 
+		if (reg_len > 32) {
+			dprintf(INFO, "max write supported is 32\n");
+			return -1;
+		}
 		buf = malloc(reg_len);
 		memcpy(buf, ptr, reg_len);
 		i2c_write_reg(i2c_address, reg, buf, reg_len);
