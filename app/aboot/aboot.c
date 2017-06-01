@@ -588,7 +588,7 @@ unsigned *atag_end(unsigned *ptr)
 void generate_atags(unsigned *ptr, const char *cmdline,
                     void *ramdisk, unsigned ramdisk_size)
 {
-
+	unsigned *orig_ptr = ptr;
 	ptr = atag_core(ptr);
 	ptr = atag_ramdisk(ptr, ramdisk, ramdisk_size);
 	ptr = target_atag_mem(ptr);
@@ -598,8 +598,18 @@ void generate_atags(unsigned *ptr, const char *cmdline,
 		ptr = atag_ptable(&ptr);
 	}
 
-	ptr = atag_cmdline(ptr, cmdline);
-	ptr = atag_end(ptr);
+	/*
+	 * Atags size filled till + cmdline size + 1 unsigned for 4-byte boundary + 4 unsigned
+	 * for atag identifier in atag_cmdline and atag_end should be with in MAX_TAGS_SIZE bytes
+	 */
+	if (((ptr - orig_ptr) + strlen(cmdline) + 5 * sizeof(unsigned)) <  MAX_TAGS_SIZE) {
+		ptr = atag_cmdline(ptr, cmdline);
+		ptr = atag_end(ptr);
+	}
+	else {
+		dprintf(CRITICAL,"Crossing ATAGs Max size allowed\n");
+		ASSERT(0);
+	}
 }
 
 typedef void entry_func_ptr(unsigned, unsigned, unsigned*);
@@ -1200,6 +1210,12 @@ int boot_linux_from_flash(void)
 
 #if DEVICE_TREE
 		dt_actual = ROUND_TO_PAGE(hdr->dt_size, page_mask);
+
+		if (UINT_MAX < ((uint64_t)kernel_actual + (uint64_t)ramdisk_actual+ (uint64_t)dt_actual + page_size)) {
+			dprintf(CRITICAL, "Integer overflow detected in bootimage header fields\n");
+			return -1;
+		}
+
 		imagesize_actual = (page_size + kernel_actual + ramdisk_actual + dt_actual);
 
 		if (check_aboot_addr_range_overlap(hdr->tags_addr, hdr->dt_size))
@@ -1208,6 +1224,10 @@ int boot_linux_from_flash(void)
 			return -1;
 		}
 #else
+		if (UINT_MAX < ((uint64_t)kernel_actual + (uint64_t)ramdisk_actual+ page_size)) {
+			dprintf(CRITICAL, "Integer overflow detected in bootimage header fields\n");
+			return -1;
+		}
 		imagesize_actual = (page_size + kernel_actual + ramdisk_actual);
 #endif
 
