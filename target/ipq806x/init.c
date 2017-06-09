@@ -138,6 +138,9 @@ void i2c_write_reg(uint8_t addr, uint8_t reg, uint8_t *val, unsigned short len)
 		unsigned char *buf;
 
 		buf = malloc(len + 2);
+		if (!buf)
+			return;
+
 		buf[0] = (reg & 0xFF00) >> 8;
 		buf[1] = (reg & 0xFF);
 		memcpy(buf+2, val, len);
@@ -401,6 +404,9 @@ usage:
 
 		memset(ptr, 0x0, reg_len);
 		buf = malloc(reg_len);
+		if (!buf)
+			return -1;
+
 		memset(buf, 0x0, reg_len);
 
 		err = i2c_read_reg(i2c_address, reg, buf, reg_len);
@@ -423,6 +429,9 @@ usage:
 			return -1;
 		}
 		buf = malloc(reg_len);
+		if (!buf)
+			return -1;
+
 		memcpy(buf, ptr, reg_len);
 		i2c_write_reg(i2c_address, reg, buf, reg_len);
 		free(buf);
