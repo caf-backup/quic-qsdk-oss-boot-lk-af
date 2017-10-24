@@ -1690,7 +1690,8 @@ continue_boot:
 	return 0;
 }
 
-unsigned char info_buf[4096];
+#define BOOT_IMG_MAX_PAGE_SIZE 4096
+unsigned char info_buf[BOOT_IMG_MAX_PAGE_SIZE];
 void write_device_info_mmc(device_info *dev)
 {
 	struct device_info *info = (void*) info_buf;
@@ -1769,6 +1770,7 @@ void write_device_info_flash(device_info *dev)
 			return;
 	}
 
+	memset(info, 0, BOOT_IMG_MAX_PAGE_SIZE);
 	memcpy(info, dev, sizeof(device_info));
 
 	if (flash_write(ptn, 0, (void *)info_buf, page_size))
