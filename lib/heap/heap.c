@@ -255,6 +255,10 @@ void *heap_alloc(size_t size, unsigned int alignment)
 	if (size < sizeof(struct free_heap_chunk))
 		size = sizeof(struct free_heap_chunk);
 
+	if (size > (size + sizeof(void *))) {
+		dprintf(CRITICAL, "invalid input size\n");
+		return NULL;
+	}
 	// round up size to a multiple of native pointer size
 	size = ROUNDUP(size, sizeof(void *));
 
