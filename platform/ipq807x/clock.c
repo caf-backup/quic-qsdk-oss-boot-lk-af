@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2017, 2018 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -740,12 +740,5 @@ void msm_clocks_init()
 {
 	clk_ops_pll.enable = sr_pll_clk_enable;
 	clk_init(msm_clocks_ipq806x, msm_num_clocks_ipq806x);
-
-	/*
-	 * Though LK doesn't use NAND, the kernel probes the NAND.
-	 * If this is not enabled, kernel's NAND probe hangs resulting
-	 * in the boot getting stuck.
-	 */
-	clk_get_set_enable("ebi2_clk", 0 /* rate */, 1 /* enable */);
 }
 
