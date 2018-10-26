@@ -70,6 +70,8 @@
 #include "scm.h"
 
 #define critical(...)	dprintf(CRITICAL, __VA_ARGS__)
+#define SOCINFO_VERSION_MAJOR(ver) ((ver & 0xffff0000) >> 16)
+#define SOCINFO_VERSION_MINOR(ver) (ver & 0x0000ffff)
 
 void dsb(void);
 void platform_uninit(void);
@@ -2337,7 +2339,10 @@ int update_device_tree(const void * fdt, char *cmdline,
 {
 	int ret = 0;
 	int offset;
-	uint32_t *memory_reg;
+	uint32_t cpu_type, machid, version, soc_ver_major, soc_ver_minor;
+	const uint32_t *addr_cells, *size_cells;
+	int prop_len, ac = 0, sc = 0;
+	void *memory_reg;
 	unsigned char *final_cmdline;
 	uint32_t len;
 
@@ -2357,8 +2362,52 @@ int update_device_tree(const void * fdt, char *cmdline,
 		return ret;
 	}
 
-	/* Get offset of the memory node */
-	offset = fdt_path_offset(fdt,"/memory");
+	offset = fdt_path_offset(fdt,"/");
+	/* Adding cpu_type node on root*/
+	cpu_type = board_platform_id();
+	ret = fdt_setprop((void *)fdt, offset, "cpu_type", &cpu_type, sizeof(uint32_t));
+	if(ret)
+	{
+		dprintf(CRITICAL, "ERROR: Cannot set cpu_type node\n");
+		return ret;
+	}
+
+	/* Adding machid node on root*/
+	machid = board_target_id();
+	ret = fdt_setprop((void *)fdt, offset, "machid", &machid, sizeof(uint32_t));
+	if(ret)
+	{
+		dprintf(CRITICAL, "ERROR: Cannot set machid node\n");
+		return ret;
+	}
+
+	/* Adding soc_version_major node on root*/
+	soc_ver_major = board_platform_ver();
+	ret = fdt_setprop((void *)fdt, offset, "soc_version_major", &soc_ver_major, sizeof(uint32_t));
+	if(ret)
+	{
+		dprintf(CRITICAL, "ERROR: Cannot set soc_ver_major node\n");
+		return ret;
+	}
+
+	/* Adding soc_version_minor node on root*/
+	version = board_platform_ver();
+	soc_ver_minor = SOCINFO_VERSION_MAJOR(version);
+	ret = fdt_setprop((void *)fdt, offset, "soc_version_minor", &soc_ver_minor, sizeof(uint32_t));
+	if(ret)
+	{
+		dprintf(CRITICAL, "ERROR: Cannot set soc_ver_minor node\n");
+		return ret;
+	}
+
+	/* Get Value of address-cells and size-cells*/
+	addr_cells = fdt_getprop((void *)fdt, offset, "#address-cells", &prop_len);
+	if(addr_cells && prop_len == sizeof(*addr_cells))
+		ac = fdt32_to_cpu(*addr_cells);
+
+	size_cells = fdt_getprop((void *)fdt, offset, "#size-cells", &prop_len);
+	if(size_cells && prop_len == sizeof(*size_cells))
+		sc = fdt32_to_cpu(*size_cells);
 
 	memory_reg = target_dev_tree_mem(&len);
 	if(!memory_reg) {
@@ -2366,8 +2415,23 @@ int update_device_tree(const void * fdt, char *cmdline,
 		return -1;
 	}
 
+	/* Get offset of the memory node */
+	offset = fdt_path_offset(fdt,"/memory");
+	if(offset < 0)
+	{
+		dprintf(CRITICAL, "Could not find memory node.\n");
+		return ret;
+	}
+
 	/* Adding the memory values to the reg property */
-	ret = fdt_setprop((void *)fdt, offset, "reg", memory_reg, sizeof(uint32_t) * len * 2);
+	if(ac == 2 && sc == 2)
+		ret = fdt_setprop((void *)fdt, offset, "reg", memory_reg, sizeof(uint64_t) * len * 2);
+	else if(ac == 1 && sc == 1)
+		ret = fdt_setprop((void *)fdt, offset, "reg", memory_reg, sizeof(uint32_t) * len * 2);
+	else {
+		dprintf(CRITICAL, "ERROR: Invalid value for address-cells or size-cells\n");
+		return -1;
+	}
 	if(ret)
 	{
 		dprintf(CRITICAL, "ERROR: Cannot update memory node\n");
