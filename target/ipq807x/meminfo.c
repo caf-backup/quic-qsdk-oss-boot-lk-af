@@ -44,7 +44,7 @@ typedef struct {
 } mem_info;
 
 mem_info fixed_memory[] = {
-	{.size = 0x10000000, .start_addr = 0x80000000},
+	{.size = 0x40000000, .start_addr = 0x40000000},
 };
 
 uint32_t *
