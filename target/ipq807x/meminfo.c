@@ -39,25 +39,25 @@
 #define SIZE_1M             (1024 * 1024)
 
 typedef struct {
-	uint32_t size;
-	uint32_t start_addr;
+	uint64_t size;
+	uint64_t start_addr;
 } mem_info;
 
 mem_info fixed_memory[] = {
-	{.size = 0x10000000, .start_addr = 0x80000000},
+	{.size = 0x40000000, .start_addr = 0x40000000},
 };
 
-uint32_t *
-target_mem_dev_tree_create(uint32_t * ptr, uint32_t size, uint32_t addr)
+uint64_t *
+target_mem_dev_tree_create(uint64_t * ptr, uint64_t size, uint64_t addr)
 {
-	*ptr++ = cpu_to_fdt32(addr);
-	*ptr++ = cpu_to_fdt32(size);
+	*ptr++ = cpu_to_fdt64(addr);
+	*ptr++ = cpu_to_fdt64(size);
 
 	return ptr;
 }
 
-uint32_t *
-target_dev_tree_create(uint32_t * ptr, mem_info usable_mem_map[],
+uint64_t *
+target_dev_tree_create(uint64_t * ptr, mem_info usable_mem_map[],
 		       uint32_t num_regions)
 {
 	uint32_t i;
@@ -74,14 +74,14 @@ target_dev_tree_create(uint32_t * ptr, mem_info usable_mem_map[],
 	return ptr;
 }
 
-uint32_t *
+uint64_t *
 target_dev_tree_mem(uint32_t * num_of_entries)
 {
 	struct smem_ram_ptable_v1 ram_ptable;
-	uint32_t *meminfo_ptr;
+	uint64_t *meminfo_ptr;
 	uint32_t num_of_sections = 0;
-	uint32_t *ptr;
-	uint32_t last_fixed_add;
+	uint64_t *ptr;
+	uint64_t last_fixed_add;
 	int n;
 	uint32_t i;
 	int index = 0;
@@ -129,7 +129,7 @@ target_dev_tree_mem(uint32_t * num_of_entries)
 
 	*num_of_entries = num_of_sections;
 	meminfo_ptr =
-	    (uint32_t *) malloc(sizeof(uint32_t) * num_of_sections * 2);
+	    (uint64_t *) malloc(sizeof(uint64_t) * num_of_sections * 2);
 
 	if (!meminfo_ptr) {
 		dprintf(CRITICAL, "%s: malloc failed\n",__func__);

@@ -153,6 +153,20 @@ struct smem_board_info_v8 {
 	uint32_t foundry_id; /* Used as foundry_id only for v9 and used as an alignment field for v8 */
 };
 
+struct smem_board_info_v9 {
+	struct smem_board_info_v3 board_info_v3;
+	unsigned platform_version;
+	unsigned fused_chip;
+	unsigned platform_subtype;
+	struct smem_pmic_info pmic_info[SMEM_MAX_PMIC_DEVICES];
+	/*
+	 * Need for 8 bytes alignment
+	 * while reading from shared memory
+	 */
+	uint32_t foundry_id; /* Used as foundry_id only for v9 and used as an alignment field for v8 */
+	unsigned chip_serial;
+};
+
 typedef struct {
 	unsigned key_len;
 	unsigned iv_len;

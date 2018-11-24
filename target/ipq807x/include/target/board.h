@@ -42,21 +42,10 @@
 #define IPQ40XX_EDMA_DEV	1
 #define IPQ40XX_EDMA_CFG_BASE 0xc080000
 
-#define MACH_TYPE_IPQ40XX_AP_DK01_1_S1  0x8010200
-#define MACH_TYPE_IPQ40XX_AP_DK01_1_C1  0x8010000
-#define MACH_TYPE_IPQ40XX_AP_DK01_1_C2  0x8010100
-#define MACH_TYPE_IPQ40XX_AP_DK04_1_C1  0x8010001
-#define MACH_TYPE_IPQ40XX_AP_DK04_1_C4  0x8010301
-#define MACH_TYPE_IPQ40XX_AP_DK04_1_C2  0x8010101
-#define MACH_TYPE_IPQ40XX_AP_DK04_1_C3  0x8010201
-#define MACH_TYPE_IPQ40XX_AP_DK04_1_C5  0x8010401
-#define MACH_TYPE_IPQ40XX_AP_DK05_1_C1  0x8010007
-#define MACH_TYPE_IPQ40XX_AP_DK06_1_C1  0x8010005
-#define MACH_TYPE_IPQ40XX_AP_DK07_1_C1  0x8010006
-#define MACH_TYPE_IPQ40XX_AP_DK07_1_C2  0x8010106
-#define MACH_TYPE_IPQ40XX_DB_DK01_1_C1  0x1010002
-#define MACH_TYPE_IPQ40XX_DB_DK02_1_C1  0x1010003
-#define MACH_TYPE_IPQ40XX_TB832         0x1010004
+#define MACH_TYPE_IPQ807X_AP_HK01_1_C1	0x8010000
+#define MACH_TYPE_IPQ807X_AP_HK01_1_C2	0x8010100
+#define MACH_TYPE_IPQ807X_AP_HK01_1_C3	0x8010200
+#define MACH_TYPE_IPQ807X_AP_HK01_1_C4	0x8010300
 
 #define TCSR_USB_CONTROLLER_TYPE_SEL	0x1A4000B0
 #define USB_CONT_TYPE_USB_20	0x2
@@ -167,11 +156,11 @@ typedef struct {
 	pcie_params_t pcie_cfg[PCI_MAX_DEVICES];
 #endif
 	const char *dtb_config_name[MAX_CONF_NAME];
-} __attribute__ ((__packed__)) board_ipq40xx_params_t;
+} __attribute__ ((__packed__)) board_ipq807x_params_t;
 
-extern board_ipq40xx_params_t *gboard_param;
+extern board_ipq807x_params_t *gboard_param;
 
-board_ipq40xx_params_t *get_board_param(unsigned int machid);
+board_ipq807x_params_t *get_board_param(unsigned int machid);
 void ipq_configure_gpio(gpio_func_data_t *gpio, int count);
 void target_mmc_deinit();
 void clock_disable_mmc();

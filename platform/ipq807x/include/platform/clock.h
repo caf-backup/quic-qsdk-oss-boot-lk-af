@@ -1,5 +1,5 @@
 /*
- * * Copyright (c) 2011-2015, 2017 The Linux Foundation. All rights reserved.
+ * * Copyright (c) 2011-2015, 2017, 2018 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -29,7 +29,7 @@
 #ifndef __PLATFORM_IPQ806X_CLOCK_H
 #define __PLATFORM_IPQ806X_CLOCK_H
 
-#define UART_DM_CLK_RX_TX_BIT_RATE 0xFF
+#define UART_DM_CLK_RX_TX_BIT_RATE 0xEE
 
 #define REG(off)	(MSM_CLK_CTL_BASE + (off))
 #define REG_GCC(off)	(MSM_APCS_GCC_BASE + (off))
