@@ -55,6 +55,7 @@
 #include <stdlib.h>
 #include <mmc_wrapper.h>
 #include <partition_parser.h>
+#include <usb30_wrapper.h>
 
 #define APPS_DLOAD_MAGIC			0x10
 #define CLEAR_MAGIC				0x0
@@ -289,23 +290,76 @@ const char * target_usb_controller()
 	return "dwc";
 }
 
+void setbits_le32(uint32_t addr, uint32_t val)
+{
+	uint32_t reg = readl(addr);
+
+	writel(reg | val, addr);
+}
+
+void clrbits_le32(uint32_t addr, uint32_t val)
+{
+	uint32_t reg = readl(addr);
+
+	writel(reg & ~(val), addr);
+}
+
 void target_usb_phy_init(void)
 {
+	uint32_t pll_status;
+	uint32_t phy_base = USB30_PHY_1_QUSB2PHY_BASE;
+
+	/* Config user control register */
+	writel(0x0c80c010, USB30_1_GUCTL);
+
+	/* Enable USB2 PHY Power down */
+	setbits_le32(phy_base+0xB4, 0x1);
+
+	/* PHY Config Sequence */
+	setbits_le32(phy_base+0x80, 0xF8);
+	setbits_le32(phy_base+0x84, 0x83);
+	setbits_le32(phy_base+0x88, 0x83);
+	setbits_le32(phy_base+0x8C, 0xC0);
+	setbits_le32(phy_base+0x9C, 0x14);
+	setbits_le32(phy_base+0x08, 0x30);
+	setbits_le32(phy_base+0x0C, 0x79);
+	setbits_le32(phy_base+0x10, 0x21);
+	setbits_le32(phy_base+0x90, 0x00);
+	setbits_le32(phy_base+0x18, 0x00);
+	setbits_le32(phy_base+0x1C, 0x9F);
+	setbits_le32(phy_base+0x04, 0x80);
+
+	/* Disable USB2 PHY Power down */
+	clrbits_le32(phy_base+0xB4, 0x1);
+
+	mdelay(10);
+
+	setbits_le32(0x00079004, 0x80);
+	mdelay(10);
+
+	/* Get QUSB2PHY_PLL_STATUS */
+	pll_status = readl(0x00079038) & (1 << 5);
+	if (!pll_status)
+		dprintf(INFO, "QUSB PHY PLL LOCK failed 0x%08x\n", readl(0x00079038));
+
+	/* HS Only: Section 2.2.1 8.a to 8.f */
+	setbits_le32(USB30_1_GENERAL_CFG, PIPE_UTMI_CLK_DIS);
+	udelay(100);
+	setbits_le32(USB30_1_GENERAL_CFG, PIPE_UTMI_CLK_SEL);
+	setbits_le32(USB30_1_GENERAL_CFG, PIPE3_PHYSTATUS_SW);
+	udelay(100);
+	clrbits_le32(USB30_1_GENERAL_CFG, PIPE_UTMI_CLK_DIS);
 }
 
 void target_usb_phy_reset(void)
 {
-	uint32_t val;
-
-	val = readl(GCC_USB_RST_CTRL_1);
-	val |= 0x14;
-	writel(val, GCC_USB_RST_CTRL_1);
-
+	setbits_le32(GCC_QUSB2_0_PHY_BCR, 0x1);
+	setbits_le32(GCC_USB0_PHY_BCR, 0x1);
 	mdelay(10);
 
-	val = readl(GCC_USB_RST_CTRL_1);
-	val &= ~(0x14);
-	writel(val, GCC_USB_RST_CTRL_1);
+	clrbits_le32(GCC_USB0_PHY_BCR, 0x1);
+	clrbits_le32(GCC_QUSB2_0_PHY_BCR, 0x1);
+	mdelay(10);
 }
 
 /* Do target specific usb initialization */

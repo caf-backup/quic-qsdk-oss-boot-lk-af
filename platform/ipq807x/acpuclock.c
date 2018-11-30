@@ -30,6 +30,7 @@
 #include <reg.h>
 #include <platform/iomap.h>
 #include <platform/clock.h>
+#include <platform/timer.h>
 #include <uart_dm.h>
 #include <gsbi.h>
 #include <mmc.h>
@@ -118,6 +119,36 @@ void hsusb_clock_init(void)
 /* enables usb30 interface and master clocks */
 void clock_usb30_init(void)
 {
+	/* USB0 clock Init */
+	writel(0x222000, GCC_USB0_GDSCR);
+	writel(0, GCC_SYS_NOC_USB0_AXI_CBCR);
+	writel(0, GCC_SNOC_BUS_TIMEOUT2_AHB_CBCR);
+
+	udelay(1);
+
+	writel(0x10b, GCC_USB0_MASTER_CFG_RCGR);
+	writel(0x1, GCC_USB0_MASTER_CMD_RCGR);
+	writel(0xcff1, GCC_USB0_MASTER_CBCR);
+
+	writel(1, GCC_SYS_NOC_USB0_AXI_CBCR);
+	writel(1, GCC_SNOC_BUS_TIMEOUT2_AHB_CBCR);
+
+	writel(1, GCC_USB0_SLEEP_CBCR);
+	writel(0x8001, GCC_USB0_PHY_CFG_AHB_CBCR);
+	writel(1, GCC_USB0_AUX_CBCR);
+
+	mdelay(10);
+
+	// Disable USB Boot Clock
+	clrbits_le32(GCC_USB_0_BOOT_CLOCK_CTL, 0x1);
+
+	// Disable QUSB2PHY_REFCLK to allow QUSB PHY PLL to lock properly
+	clrbits_le32(GCC_QUSB_REF_CLK_EN, 0x0);
+
+	// GCC Reset USB0
+	setbits_le32(GCC_USB0_BCR, 0x1);
+	mdelay(10);
+	clrbits_le32(GCC_USB0_BCR, 0x1);
 }
 
 /* Configure UART clock - based on the gsbi id */
