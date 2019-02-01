@@ -52,10 +52,13 @@ void arm_mmu_map_section(addr_t paddr, addr_t vaddr, uint flags)
 
 	/* Set the entry value:
 	 * (2<<0): Section entry
-	 * (0<<5): Domain = 0
+	 * (x<<4): XN bit
 	 *  flags: TEX, CB and AP bit settings provided by the caller.
 	 */
-	tt[index] = (paddr & ~(MB-1)) | (0<<5) | (2<<0) | flags;
+	if (paddr >= (MEMBASE) && paddr <= (MEMBASE + MEMSIZE))
+		tt[index] = (paddr & ~(MB-1)) | (0<<4) | (2<<0) | flags;
+	else
+		tt[index] = (paddr & ~(MB-1)) | (1<<4) | (2<<0) | flags;
 
 	arm_invalidate_tlb();
 }
@@ -86,8 +89,8 @@ void arm_mmu_init(void)
 	/* set up the translation table base */
 	arm_write_ttbr((uint32_t)tt);
 
-	/* set up the domain access register */
-	arm_write_dacr(0x00000001);
+	/* set the domain access control to all clients */
+	arm_write_dacr(0x55555555);
 
 	/* turn on the mmu */
 	arm_write_cr1(arm_read_cr1() | 0x1);
