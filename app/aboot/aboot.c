@@ -70,8 +70,6 @@
 #include "scm.h"
 
 #define critical(...)	dprintf(CRITICAL, __VA_ARGS__)
-#define SOCINFO_VERSION_MAJOR(ver) ((ver & 0xffff0000) >> 16)
-#define SOCINFO_VERSION_MINOR(ver) (ver & 0x0000ffff)
 
 void dsb(void);
 void platform_uninit(void);
@@ -2339,7 +2337,7 @@ int update_device_tree(const void * fdt, char *cmdline,
 {
 	int ret = 0;
 	int offset;
-	uint32_t cpu_type, machid, version, soc_ver_major, soc_ver_minor;
+	uint32_t cpu_type, machid, soc_ver_major, soc_ver_minor;
 	const uint32_t *addr_cells, *size_cells;
 	int prop_len, ac = 0, sc = 0;
 	void *memory_reg;
@@ -2391,8 +2389,7 @@ int update_device_tree(const void * fdt, char *cmdline,
 	}
 
 	/* Adding soc_version_minor node on root*/
-	version = board_platform_ver();
-	soc_ver_minor = SOCINFO_VERSION_MAJOR(version);
+	soc_ver_minor = board_platform_ver_minor();
 	ret = fdt_setprop((void *)fdt, offset, "soc_version_minor", &soc_ver_minor, sizeof(uint32_t));
 	if(ret)
 	{

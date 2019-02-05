@@ -284,3 +284,10 @@ uint32_t board_platform_ver()
 	version = board.platform_version;
 	return ((version & 0xffff0000) >> 16);
 }
+
+uint32_t board_platform_ver_minor()
+{
+	unsigned version;
+	version = board.platform_version;
+	return (version & 0x0000ffff);
+}
