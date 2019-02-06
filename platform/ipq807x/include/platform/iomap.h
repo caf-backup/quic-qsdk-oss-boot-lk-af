@@ -120,6 +120,8 @@
 #define UART3_DM_BASE			0x078B2000
 #define UART4_DM_BASE			0x078B3000
 
+#define BLSP_QUP_BASE(qup_id)  (0x078B5000 + (qup_id * 0x1000))
+
 #define EBI2_CHIP_SELECT_CFG0		0x1A100000
 #define EBI2_XMEM_CS3_CFG1		0x1A110034
 
@@ -151,6 +153,20 @@
 #define SDCC_HC_PWRCTL_MASK_REG		(0x000000E0)
 #define SDCC_HC_PWRCTL_CLEAR_REG	(0x000000E4)
 #define SDCC_HC_PWRCTL_CTL_REG		(0x000000E8)
+
+enum {
+        QUP_ID_0 = 0,
+        QUP_ID_1,
+        QUP_ID_2,
+        QUP_ID_3,
+        QUP_ID_4,
+        QUP_ID_5,
+} qup_instance;
+
+enum {
+        BLSP_ID_1 = 1,
+        BLSP_ID_2,
+} blsp_instance;
 
 void setbits_le32(uint32_t addr, uint32_t val);
 void clrbits_le32(uint32_t addr, uint32_t val);

@@ -30,8 +30,12 @@
 #define __PLATFORM_IPQ40XX_GPIO_H
 
 /* GPIO TLMM: Direction */
+#ifndef GPIO_INPUT
 #define GPIO_INPUT		0
+#endif
+#ifndef GPIO_OUTPUT
 #define GPIO_OUTPUT		1
+#endif
 
 /* GPIO TLMM: Output value */
 #define GPIO_OUT_LOW		0
@@ -80,5 +84,6 @@
 
 void gpio_config_i2c(uint8_t gsbi_id);
 void gpio_config_uart_dm(uint8_t id);
+void gpio_config_blsp_i2c(uint8_t blsp_id, uint8_t qup_id);
 
 #endif

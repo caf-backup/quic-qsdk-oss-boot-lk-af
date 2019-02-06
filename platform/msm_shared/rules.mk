@@ -72,6 +72,7 @@ endif
 
 ifeq ($(PLATFORM),ipq807x)
 	OBJS +=	$(LOCAL_DIR)/qtimer.o \
+			$(LOCAL_DIR)/i2c_qup.o \
 			$(LOCAL_DIR)/qtimer_cp15.o \
 			$(LOCAL_DIR)/uart_dm.o \
 			$(LOCAL_DIR)/qgic.o \

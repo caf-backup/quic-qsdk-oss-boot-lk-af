@@ -108,3 +108,19 @@ void gpio_config_uart_dm(uint8_t ignore)
 
 	ipq_configure_gpio(uart->dbg_uart_gpio, NO_OF_DBG_UART_GPIOS);
 }
+
+void gpio_config_blsp_i2c(uint8_t blsp_id, uint8_t qup_id)
+{
+	if (blsp_id == BLSP_ID_1) {
+		switch (qup_id) {
+		case QUP_ID_1:
+			gpio_tlmm_config(42, 2, 0, GPIO_NO_PULL, GPIO_8MA, GPIO_OE_ENABLE, 0, 0, 0);
+			gpio_tlmm_config(43, 2, 0, GPIO_NO_PULL, GPIO_8MA, GPIO_OE_ENABLE, 0, 0, 0);
+		break;
+		default:
+			dprintf(CRITICAL, "Configure gpios for QUP instance: %u\n",
+					  qup_id);
+			ASSERT(0);
+		};
+	}
+}

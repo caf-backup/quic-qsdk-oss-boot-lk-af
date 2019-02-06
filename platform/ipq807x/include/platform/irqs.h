@@ -51,8 +51,9 @@
 #define SDCC2_PWRCTL_IRQ	(GIC_SPI_START + 221)
 
 
-#define GSBI_QUP_IRQ(id)       ((id) <= 8 ? (GIC_SPI_START + 145 + 2*((id))) : \
-                                            (GIC_SPI_START + 187 + 2*((id)-8)))
+#define BLSP_QUP_IRQ(blsp_id, qup_id)          ((blsp_id == 1) ? \
+                                               ((GIC_SPI_START + 95) + qup_id):\
+                                               ((GIC_SPI_START + 299) + qup_id))
 
 /* Retrofit universal macro names */
 #define INT_USB_HS                  USB1_HS_IRQ
