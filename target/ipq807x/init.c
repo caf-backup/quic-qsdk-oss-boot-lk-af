@@ -63,15 +63,15 @@
 #define SCM_CMD_TZ_FORCE_DLOAD_ID 		0x10
 
 #define CE1_INSTANCE		1
-#define CE_EE			0
+#define CE_EE			1
 #define CE_FIFO_SIZE		512
 #define CE_READ_PIPE		3
 #define CE_WRITE_PIPE		2
 #define CE_READ_PIPE_LOCK_GRP	0
 #define CE_WRITE_PIPE_LOCK_GRP	0
 #define CE_ARRAY_SIZE		20
-#define MSM_CE1_BAM_BASE	0x08E04000
-#define MSM_CE1_BASE		0x08E3A000
+#define MSM_CE1_BAM_BASE	0x00704000
+#define MSM_CE1_BASE		0x0073a000
 
 extern struct mmc_card *get_mmc_card();
 
