@@ -391,3 +391,141 @@ uint8_t switch_ce_chn_cmd(enum ap_ce_channel_type channel)
 	return resp_buf;
 }
 
+/* armv8 support */
+int __qca_scm_call_armv8_32(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3, uint32_t x4, uint32_t x5,
+				uint32_t *ret1, uint32_t *ret2, uint32_t *ret3)
+{
+	register uint32_t r0 __asm__("r0") = x0;
+	register uint32_t r1 __asm__("r1") = x1;
+	register uint32_t r2 __asm__("r2") = x2;
+	register uint32_t r3 __asm__("r3") = x3;
+	register uint32_t r4 __asm__("r4") = x4;
+	register uint32_t r5 __asm__("r5") = x5;
+
+	__asm__ volatile(
+		__asmeq("%0", "r0")
+		__asmeq("%1", "r1")
+		__asmeq("%2", "r2")
+		__asmeq("%3", "r3")
+		__asmeq("%4", "r0")
+		__asmeq("%5", "r1")
+		__asmeq("%6", "r2")
+		__asmeq("%7", "r3")
+		__asmeq("%8", "r4")
+		__asmeq("%9", "r5")
+		".arch_extension sec\n"
+		"smc    #0\n"
+		: "=r" (r0), "=r" (r1), "=r" (r2), "=r" (r3)
+		: "r" (r0), "r" (r1), "r" (r2), "r" (r3), "r" (r4),
+		"r" (r5));
+
+	if (ret1)
+		*ret1 = r1;
+	if (ret2)
+		*ret2 = r2;
+	if (ret3)
+		*ret3 = r3;
+
+	return r0;
+}
+
+
+/**
+ * scm_call_64() - Invoke a syscall in the secure world
+ *  <at> svc_id: service identifier
+ *  <at> cmd_id: command identifier
+ *  <at> fn_id: The function ID for this syscall
+ *  <at> desc: Descriptor structure containing arguments and return values
+ *
+ * Sends a command to the SCM and waits for the command to finish processing.
+ *
+ */
+static int scm_call_64(uint32_t svc_id, uint32_t cmd_id, struct qca_scm_desc *desc)
+{
+	int arglen = desc->arginfo & 0xf;
+	int ret;
+	uint32_t fn_id = QCA_SCM_SIP_FNID(svc_id, cmd_id);
+
+
+	if (arglen > QCA_MAX_ARG_LEN) {
+		dprintf(INFO, "Error Extra args not supported\n");
+		for(;;);
+	}
+
+	desc->ret[0] = desc->ret[1] = desc->ret[2] = 0;
+
+	arch_clean_cache_range(BASE_ADDR, MEMBASE + MEMSIZE - BASE_ADDR);
+
+	ret = __qca_scm_call_armv8_32(fn_id, desc->arginfo,
+				      desc->args[0], desc->args[1],
+				      desc->args[2], desc->x5,
+				      &desc->ret[0], &desc->ret[1],
+				      &desc->ret[2]);
+
+	return ret;
+}
+
+static enum scm_interface_version {
+        SCM_UNKNOWN,
+        SCM_LEGACY,
+        SCM_ARMV8_32,
+} scm_version = SCM_UNKNOWN;
+
+/* This function is used to find whether TZ is in AARCH64 mode.
+ * If this function returns 1, then its in AARCH64 mode and
+ * calling conventions for AARCH64 TZ is different, we need to
+ * use them.
+ */
+bool is_scm_armv8(void)
+{
+        int ret;
+        uint32_t ret1, x0;
+
+        if (likely(scm_version != SCM_UNKNOWN))
+                return (scm_version == SCM_ARMV8_32);
+
+        /* Try SMC32 call */
+        ret1 = 0;
+        x0 = QCA_SCM_SIP_FNID(SCM_SVC_INFO, QCA_IS_CALL_AVAIL_CMD) |
+                        QCA_SMC_ATOMIC_MASK;
+
+	arch_clean_cache_range(BASE_ADDR, MEMBASE + MEMSIZE - BASE_ADDR);
+
+	ret = __qca_scm_call_armv8_32(x0, QCA_SCM_ARGS(1), x0, 0, 0, 0,
+				      &ret1, NULL, NULL);
+        if (ret || !ret1)
+                scm_version = SCM_LEGACY;
+        else
+                scm_version = SCM_ARMV8_32;
+
+        dprintf(SPEW, "scm_call: scm version is %x\n", scm_version);
+
+        return (scm_version == SCM_ARMV8_32);
+}
+
+void jump_kernel64(void *kernel_entry,
+				void *fdt_addr)
+{
+	struct qca_scm_desc desc = {0};
+	int ret = 0;
+	kernel_params param = {0};
+
+	param.reg_x0 = (uint32_t)fdt_addr;
+	param.kernel_start = (uint32_t)kernel_entry;
+
+	desc.arginfo = QCA_SCM_ARGS(2, SCM_READ_OP);
+	desc.args[0] = (uint32_t) &param;
+	desc.args[1] = sizeof(param);
+
+	if (!is_scm_armv8()) {
+		dprintf(INFO, "Can't boot kernel: %d\n", ret);
+		for(;;);
+	}
+
+	dprintf(INFO, "Jumping to AARCH64 kernel via monitor\n");
+	ret = scm_call_64(SCM_ARCH64_SWITCH_ID, SCM_EL1SWITCH_CMD_ID,
+		&desc);
+
+	dprintf(INFO, "Can't boot kernel: %d\n", ret);
+	for(;;);
+}

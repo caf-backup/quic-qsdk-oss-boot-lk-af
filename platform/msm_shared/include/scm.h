@@ -57,6 +57,7 @@ typedef struct {
 	uint32 *img_len_ptr;
 } img_req;
 
+#define SCM_SVC_INFO            0x6
 #define SCM_SVC_SSD                 7
 #define SCM_SVC_IO_ACCESS	0x5
 #define SSD_DECRYPT_ID              0x01
@@ -150,6 +151,82 @@ struct scm_response {
 	uint32_t buf_offset;
 	uint32_t is_complete;
 };
+
+#define MAX_QCA_SCM_RETS		3
+#define MAX_QCA_SCM_ARGS		10
+#define SCM_READ_OP			1
+
+#define QCA_SCM_ARGS_IMPL(num, a, b, c, d, e, f, g, h, i, j, ...) (\
+			(((a) & 0xff) << 4) | \
+			(((b) & 0xff) << 6) | \
+			(((c) & 0xff) << 8) | \
+			(((d) & 0xff) << 10) | \
+			(((e) & 0xff) << 12) | \
+			(((f) & 0xff) << 14) | \
+			(((g) & 0xff) << 16) | \
+			(((h) & 0xff) << 18) | \
+			(((i) & 0xff) << 20) | \
+			(((j) & 0xff) << 22) | \
+			(num & 0xffff))
+
+#define QCA_SCM_ARGS(...) QCA_SCM_ARGS_IMPL(__VA_ARGS__, \
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+#define QCA_SCM_SIP_FNID(s, c) (((((s) & 0xFF) << 8) | \
+			((c) & 0xFF)) | 0x02000000)
+
+#define QCA_SMC_ATOMIC_MASK            0x80000000
+
+#define QCA_MAX_ARG_LEN	5
+
+#define SCM_ARCH64_SWITCH_ID	0x1
+#define QCA_IS_CALL_AVAIL_CMD	0x1
+#define SCM_EL1SWITCH_CMD_ID	0xf
+
+#define SCM_NULL_OP 0
+#define	SCM_RW_OP   2
+#define	SCM_BUF_VAL 3
+
+
+/**
+ * struct qca_scm_desc
+ *  <at> arginfo: Metadata describi`ng the arguments in args[]
+ *  <at> args: The array of arguments for the secure syscall
+ *  <at> ret: The values returned by the secure syscall
+ *  <at> extra_arg_buf: The buffer containing extra arguments
+                        (that don't fit in available registers)
+ *  <at> x5: The 4rd argument to the secure syscall or physical address of
+                extra_arg_buf
+ */
+struct qca_scm_desc {
+	uint32_t arginfo;
+	uint32_t args[MAX_QCA_SCM_ARGS];
+	uint32_t ret[MAX_QCA_SCM_RETS];
+
+	/* private */
+	void *extra_arg_buf;
+	uint64_t x5;
+};
+
+typedef struct {
+	uint64_t reg_x0;
+	uint64_t reg_x1;
+	uint64_t reg_x2;
+	uint64_t reg_x3;
+	uint64_t reg_x4;
+	uint64_t reg_x5;
+	uint64_t reg_x6;
+	uint64_t reg_x7;
+	uint64_t reg_x8;
+	uint64_t kernel_start;
+} kernel_params;
+
+int __qca_scm_call_armv8_32(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
+			    uint32_t x4, uint32_t x5, uint32_t *ret1,
+			    uint32_t *ret2, uint32_t *ret3);
+bool is_scm_armv8(void);
+void __attribute__ ((noreturn)) jump_kernel64(void *kernel_entry,
+		void *fdt_addr);
 
 
 

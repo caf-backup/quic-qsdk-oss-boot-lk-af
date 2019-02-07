@@ -69,6 +69,21 @@
 
 #include "scm.h"
 
+struct aarch64_hdr {
+	uint32_t code0; /* Executable code */
+	uint32_t code1; /* Executable code */
+	uint64_t text_offset; /* Image load offset, little endian */
+	uint64_t image_size; /* Effective Image size, little endian */
+	uint64_t flags; /* kernel flags, little endian */
+	uint64_t res1; /* reserved */
+	uint64_t res2; /* reserved */
+	uint64_t res3; /* reserved */
+	uint32_t magic; /* Magic number, little endian, "ARM\x64" */
+	uint32_t res4; /* reserved (used for PE COFF offset) */
+};
+#define AARCH64_LINUX_MAGIC 0x644d5241
+#define TEST_AARCH64(ptr) (ptr->magic == AARCH64_LINUX_MAGIC) ? true : false
+
 #define critical(...)	dprintf(CRITICAL, __VA_ARGS__)
 
 void dsb(void);
@@ -671,7 +686,10 @@ void boot_linux(void *kernel, unsigned *tags,
 	arch_disable_mmu();
 #endif
 
-	entry(0, machtype, (unsigned*)tags_phys);
+	if (TEST_AARCH64(((struct aarch64_hdr *)entry)))
+		jump_kernel64(entry, (void *)tags_phys);
+	else
+		entry(0, machtype, (unsigned*)tags_phys);
 }
 
 unsigned page_size = 0;
