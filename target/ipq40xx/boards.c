@@ -1509,3 +1509,24 @@ void update_mac_addrs(void *fdt)
 	free(mac);
 }
 
+void fdt_fixup_version(void *fdt)
+{
+	int offset, ret;
+	char ver[OEM_VERSION_STRING_LENGTH + VERSION_STRING_LENGTH + 1];
+
+	offset = fdt_path_offset(fdt, "/");
+
+	if (!smem_get_build_version(ver, sizeof(ver), BOOT_VERSION)) {
+		ret = fdt_setprop((void *)fdt, offset, "boot_version", ver, strlen(ver));
+		if (ret)
+			dprintf(CRITICAL, "fdt-fixup: Unable to set Boot version\n");
+	}
+
+	if (!smem_get_build_version(ver, sizeof(ver), TZ_VERSION)) {
+		ret = fdt_setprop((void *)fdt, offset, "tz_version", ver, strlen(ver));
+		if (ret)
+			dprintf(CRITICAL, "fdt-fixup: Unable to set TZ version\n");
+	}
+
+	return;
+}

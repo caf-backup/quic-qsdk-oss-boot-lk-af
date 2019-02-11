@@ -33,7 +33,16 @@
 
 #include <sys/types.h>
 
+#define INDEX_LENGTH			2
+#define SEP1_LENGTH			1
+#define VERSION_STRING_LENGTH		72
+#define VARIANT_STRING_LENGTH		20
+#define SEP2_LENGTH			1
+#define OEM_VERSION_STRING_LENGTH	32
+#define BUILD_ID_LEN			32
+
 #define SMEM_MAX_PMIC_DEVICES           3
+
 struct smem_proc_comm {
 	unsigned command;
 	unsigned status;
@@ -357,14 +366,20 @@ typedef enum {
 
 	SMEM_PARTITION_TABLE_OFFSET = 428,
 
+	SMEM_IMAGE_VERSION_TABLE = 469,
+
 	SMEM_FIRST_VALID_TYPE = SMEM_SPINLOCK_ARRAY,
-	SMEM_LAST_VALID_TYPE = SMEM_PARTITION_TABLE_OFFSET,
+	SMEM_LAST_VALID_TYPE = SMEM_IMAGE_VERSION_TABLE,
 
 	SMEM_MAX_SIZE = SMEM_LAST_VALID_TYPE + 1,
 } smem_mem_type_t;
 
 /* Note: buf MUST be 4byte aligned, and max_len MUST be a multiple of 4. */
 unsigned smem_read_alloc_entry(smem_mem_type_t type, void *buf, int max_len);
+unsigned smem_read_alloc_entry_offset(smem_mem_type_t type, void *buf, int len, int offset);
+int smem_get_build_version(char *version_name, int buf_size, int index);
+int ipq_smem_get_boot_version(char *version_name, int buf_size);
+int ipq_get_tz_version(char *version_name, int buf_size);
 
 /* SMEM RAM Partition */
 enum {
@@ -503,13 +518,22 @@ struct smem_ptable {
 	struct smem_ptn parts[SMEM_PTABLE_MAX_PARTS];
 } __attribute__ ((__packed__));
 
-unsigned smem_read_alloc_entry_offset(smem_mem_type_t type, void *buf, int len, int offset);
 int smem_ram_ptable_init(struct smem_ram_ptable *smem_ram_ptable);
 int smem_ram_ptable_init_v1(struct smem_ram_ptable_v1 *smem_ram_ptable);
 
 struct smem_machid_info {
 	unsigned format;
 	unsigned machid;
+};
+
+struct version_entry
+{
+	char index[INDEX_LENGTH];
+	char colon_sep1[SEP1_LENGTH];
+	char version_string[VERSION_STRING_LENGTH];
+	char variant_string[VARIANT_STRING_LENGTH];
+	char colon_sep2[SEP2_LENGTH];
+	char oem_version_string[OEM_VERSION_STRING_LENGTH];
 };
 
 #endif				/* __PLATFORM_MSM_SHARED_SMEM_H */

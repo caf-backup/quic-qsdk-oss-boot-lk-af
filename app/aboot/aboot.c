@@ -92,6 +92,7 @@ void write_device_info_mmc(device_info *dev);
 void write_device_info_flash(device_info *dev);
 uint32_t* target_dev_tree_mem(uint32_t * num_of_entries);
 void update_mac_addrs(void *fdt);
+void fdt_fixup_version(void *fdt);
 
 /* fastboot command function pointer */
 typedef void (*fastboot_cmd_fn) (const char *, void *, unsigned);
@@ -2414,6 +2415,8 @@ int update_device_tree(const void * fdt, char *cmdline,
 		dprintf(CRITICAL, "ERROR: Cannot set soc_ver_minor node\n");
 		return ret;
 	}
+
+	fdt_fixup_version((void*)fdt);
 
 	/* Get Value of address-cells and size-cells*/
 	addr_cells = fdt_getprop((void *)fdt, offset, "#address-cells", &prop_len);

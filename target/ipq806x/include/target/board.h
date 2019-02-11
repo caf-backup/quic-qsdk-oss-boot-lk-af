@@ -103,6 +103,8 @@ typedef enum {
 #define NO_OF_I2C_GPIOS			2
 #define MAX_CONF_NAME			5
 
+#define BOOT_VERSION			0
+#define TZ_VERSION			1
 
 #define SPI_NOR_FLASH_VENDOR_MICRON	0x1
 #define SPI_NOR_FLASH_VENDOR_SPANSION	0x2

@@ -62,6 +62,7 @@ typedef struct {
 #define SCM_SVC_IO_ACCESS	0x5
 #define SSD_DECRYPT_ID              0x01
 #define SSD_ENCRYPT_ID              0x02
+#define TZBSP_BUILD_VER_QUERY_CMD	0x4
 
 #define SCM_VAL		0
 #define SCM_IO_READ     1

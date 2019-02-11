@@ -30,8 +30,9 @@
 #include <reg.h>
 #include <sys/types.h>
 #include <platform/iomap.h>
-
-#include "smem.h"
+#include <scm.h>
+#include <board.h>
+#include <smem.h>
 
 static struct smem *smem = (void *)(MSM_SHARED_BASE);
 
@@ -90,4 +91,48 @@ smem_read_alloc_entry_offset(smem_mem_type_t type, void *buf, int len,
 		*(dest++) = readl(src);
 
 	return 0;
+}
+
+int smem_get_build_version(char *version_name, int buf_size, int index)
+{
+	int ret;
+	struct version_entry version_entry[32];
+
+	ret = smem_read_alloc_entry(SMEM_IMAGE_VERSION_TABLE,
+				    &version_entry, sizeof(version_entry));
+	if (ret != 0)
+		return 1;
+
+	snprintf(version_name, buf_size, "%s-%s\n",
+			version_entry[index].oem_version_string,
+			version_entry[index].version_string);
+
+	return ret;
+}
+
+int ipq_smem_get_boot_version(char *version_name, int buf_size)
+{
+	int ret;
+	struct smem_board_info_v6 board_info_v6;
+
+	ret = smem_read_alloc_entry(SMEM_BOARD_INFO_LOCATION,
+				    &board_info_v6, sizeof(board_info_v6));
+	if (ret != 0)
+		return 1;
+
+	snprintf(version_name, buf_size, "%s\n", board_info_v6.board_info_v3.build_id);
+	return ret;
+}
+
+int ipq_get_tz_version(char *version_name, int buf_size)
+{
+	int ret;
+
+	ret = scm_call(SCM_SVC_INFO, TZBSP_BUILD_VER_QUERY_CMD, NULL,
+					0, version_name, BUILD_ID_LEN);
+	if (ret != 0)
+		return 1;
+
+	snprintf(version_name, buf_size, "%s\n", version_name);
+	return ret;
 }

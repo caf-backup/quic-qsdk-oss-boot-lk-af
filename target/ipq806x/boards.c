@@ -1480,3 +1480,26 @@ void update_mac_addrs(void *fdt)
 	free(mac);
 }
 
+void fdt_fixup_version(void *fdt)
+{
+	int offset, ret;
+	char ver[OEM_VERSION_STRING_LENGTH + VERSION_STRING_LENGTH + 1];
+
+	offset = fdt_path_offset(fdt, "/");
+
+	/* ipq806x doesn't have image version table in SMEM */
+	if (!ipq_smem_get_boot_version(ver, sizeof(ver))) {
+		ret = fdt_setprop((void *)fdt, offset, "boot_version", ver, strlen(ver));
+		if (ret)
+			dprintf(CRITICAL, "fdt-fixup: unable to set Boot version\n");
+	}
+
+	if (!ipq_get_tz_version(ver, sizeof(ver))) {
+		ret = fdt_setprop((void *)fdt, offset, "tz_version", ver, strlen(ver));
+		if (ret)
+			dprintf(CRITICAL, "fdt-fixup: Unable to set TZ version\n");
+	}
+
+	return;
+}
+
