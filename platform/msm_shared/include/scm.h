@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, 2019 The Linux Foundation. All rights reserved.
 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -63,6 +63,7 @@ typedef struct {
 #define SSD_DECRYPT_ID              0x01
 #define SSD_ENCRYPT_ID              0x02
 
+#define SCM_VAL		0
 #define SCM_IO_READ     1
 #define SCM_IO_WRITE    2
 
@@ -227,7 +228,8 @@ int __qca_scm_call_armv8_32(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
 bool is_scm_armv8(void);
 void __attribute__ ((noreturn)) jump_kernel64(void *kernel_entry,
 		void *fdt_addr);
-
-
+int qca_scm_call_write(uint32_t svc_id,
+		       uint32_t cmd_id, uint32_t *addr, uint32_t val);
+int qca_scm_sdi_v8(uint32_t dump_id);
 
 #endif

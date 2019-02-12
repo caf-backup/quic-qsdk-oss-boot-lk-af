@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, 2019 The Linux Foundation. All rights reserved.
 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -528,4 +528,34 @@ void jump_kernel64(void *kernel_entry,
 
 	dprintf(INFO, "Can't boot kernel: %d\n", ret);
 	for(;;);
+}
+
+int qca_scm_call_write(uint32_t svc_id,
+		       uint32_t cmd_id, uint32_t *addr, uint32_t val)
+{
+	int ret = 0;
+
+	struct qca_scm_desc desc = {0};
+	desc.arginfo = QCA_SCM_ARGS(2, SCM_READ_OP);
+	desc.args[0] = (uint32_t)addr;
+	desc.args[1] = val;
+	ret = scm_call_64(svc_id, cmd_id, &desc);
+
+	return ret;
+}
+
+int qca_scm_sdi_v8(uint32_t dump_id)
+{
+	struct qca_scm_desc desc = {0};
+	int ret;
+
+	desc.args[0] = 1ul;    /* Disable wdog debug */
+	desc.args[1] = 0ul;    /* SDI Enable */
+	desc.arginfo = QCA_SCM_ARGS(2, SCM_VAL, SCM_VAL);
+	ret = scm_call_64(SCM_SVC_BOOT, dump_id, &desc);
+
+	if (ret)
+		return ret;
+
+	return desc.ret[0];
 }

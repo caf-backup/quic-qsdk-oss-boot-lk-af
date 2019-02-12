@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2009, Google Inc.
  * All rights reserved.
- * Copyright (c) 2009-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2017, 2019 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -256,13 +256,8 @@ crypto_engine_type board_ce_type(void)
 
 static void reset_crashdump(void)
 {
-        unsigned int magic_cookie = CLEAR_MAGIC;
-        unsigned int clear_info[] =
-                { 1 /* Disable wdog debug */, 0 /* SDI enable*/, };
-        scm_call(SCM_SVC_BOOT, SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID,
-                (const void *)&clear_info, sizeof(clear_info), NULL, 0);
-        scm_call(SCM_SVC_BOOT, SCM_CMD_TZ_FORCE_DLOAD_ID, &magic_cookie,
-                        sizeof(magic_cookie), NULL, 0);
+	if (is_scm_armv8())
+		qca_scm_sdi_v8(SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID);
 }
 
 void reboot_device(unsigned reboot_reason)
@@ -276,28 +271,36 @@ void reboot_device(unsigned reboot_reason)
 	dprintf(CRITICAL, "Rebooting failed\n");
 }
 
+int apps_iscrashed(void)
+{
+	uint32_t dmagic = readl(0x193D100);
+
+	if (dmagic == APPS_DLOAD_MAGIC)
+		return 1;
+
+	return 0;
+}
+
 unsigned check_reboot_mode(void)
 {
 	unsigned restart_reason = 0;
-	volatile uint32_t val;
+	int ret;
 
 	/*
 	 * The kernel did not shutdown properly in the previous boot.
 	 * The SBLs would not have loaded QSEE firmware, proceeding with
 	 * the boot is not possible. Reboot the system cleanly.
 	 */
-	 scm_call(SCM_SVC_BOOT, SCM_SVC_RD, NULL,
-                        0, (void *)&val, sizeof(val));
-	if (val == APPS_DLOAD_MAGIC) {
-
-		val = 0x0;
-                scm_call(SCM_SVC_BOOT, SCM_SVC_WR,
-                        (void *)&val, sizeof(val), NULL, 0);
-		dprintf(CRITICAL, "Apps Dload Magic set. Rebooting...\n");
-		mdelay(10000);
+	if(apps_iscrashed()) {
+		ret = qca_scm_call_write(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
+					 (uint32_t *)0x193D100, CLEAR_MAGIC);
+		if (ret) {
+			dprintf(CRITICAL, "Error resetting crashdump magic\n");
+			return ret;
+		}
+		dprintf(INFO, "Apps Dload Magic set. Rebooting...\n");
 		reboot_device(0);
 	}
-
 	/* Read reboot reason and scrub it */
 	restart_reason = readl(RESTART_REASON_ADDR);
 	writel(0x00, RESTART_REASON_ADDR);
