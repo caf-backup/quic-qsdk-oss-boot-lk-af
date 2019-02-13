@@ -1779,6 +1779,14 @@ uint32_t mmc_sdhci_read(struct mmc_device *dev, void *dest,
 	cmd.data.data_ptr = dest;
 	cmd.data.num_blocks = num_blocks;
 
+	/*
+	 * Flush the data buffer for read operation only
+	 * to avoid any possible dirty lines before DMA
+	 * operation.
+	 */
+	arch_clean_cache_range((addr_t)cmd.data.data_ptr,
+			       (cmd.data.num_blocks * SDHCI_MMC_BLK_SZ));
+
 	/* send command */
 	mmc_ret = sdhci_send_command(&dev->host, &cmd);
 	if (mmc_ret) {
