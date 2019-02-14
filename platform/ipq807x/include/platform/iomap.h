@@ -33,6 +33,8 @@
 #ifndef _PLATFORM_IPQ806X_IOMAP_H_
 #define _PLATFORM_IPQ806X_IOMAP_H_
 
+#include <sys/types.h>
+
 #define MSM_IOMAP_BASE              0x00000000
 #define MSM_IOMAP_END               0x08000000
 
@@ -77,7 +79,7 @@
 #define MSM_GIC_CPU_BASE		0x0B002000
 #define MSM_VIC_BASE			0x0B080000
 #define MSM_TCSR_SIZE			4096
-#define MSM_USB_BASE			0x5999900
+#define MSM_USB_BASE			0x08A00000
 #define TLMM_BASE_ADDR			0x1000000
 
 /* USB30 base */
@@ -150,4 +152,6 @@
 #define SDCC_HC_PWRCTL_CLEAR_REG	(0x000000E4)
 #define SDCC_HC_PWRCTL_CTL_REG		(0x000000E8)
 
+void setbits_le32(uint32_t addr, uint32_t val);
+void clrbits_le32(uint32_t addr, uint32_t val);
 #endif
