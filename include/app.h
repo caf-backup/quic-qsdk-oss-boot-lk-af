@@ -22,6 +22,7 @@
  */
 #ifndef __APP_H
 #define __APP_H
+#include <stdlib.h>
 
 /* app support api */
 void apps_init(void); /* one time setup */
@@ -41,6 +42,20 @@ struct app_descriptor {
 	app_entry entry;
 	unsigned int flags;
 };
+
+typedef struct disk_partition {
+	char part_name[16];
+	char uuid[37];
+}disk_partition_t;
+
+#define UUID_BIN_LEN 16
+#define MAX_BOOT_ARGS_SIZE 128
+#define GPT_ENTRY_NUMBERS 128
+
+int update_uuid(char *bootargs);
+int set_uuid_bootargs(char *boot_args, char *part_name,
+		int buflen, bool gpt_flag);
+int get_partition_info_efi_by_name(const char *name, disk_partition_t *info);
 
 #define APP_START(appname) struct app_descriptor _app_##appname __SECTION(".apps") = { .name = #appname,
 #define APP_END };

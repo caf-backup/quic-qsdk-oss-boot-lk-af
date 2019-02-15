@@ -634,6 +634,8 @@ void boot_linux(void *kernel, unsigned *tags,
 		void *ramdisk, unsigned ramdisk_size)
 {
 	unsigned char *final_cmdline;
+	char bootargs[MAX_BOOT_ARGS_SIZE] = {'\0'};
+
 #if DEVICE_TREE
 	int ret = 0;
 #endif
@@ -643,7 +645,15 @@ void boot_linux(void *kernel, unsigned *tags,
 
 	ramdisk = (void *)PA((addr_t)ramdisk);
 
-	final_cmdline = update_cmdline((const char*)cmdline);
+	/*update the uuid in kernel bootargs and mount rootfs
+	 * based on uuid
+	 */
+	ret = update_uuid(bootargs);
+
+	if (ret)
+		final_cmdline = update_cmdline((const char*)bootargs);
+	else
+		final_cmdline = update_cmdline((const char*)cmdline);
 
 #if DEVICE_TREE
 	dprintf(INFO, "Updating device tree: start\n");
