@@ -88,6 +88,9 @@ static int read_line(char *buffer, int len)
 		if (escape_level == 0) {
 			switch (c) {
 				case '\r':
+					putc(c);
+					putc('\n');
+					goto done;
 				case '\n':
 					putc(c);
 					goto done;
