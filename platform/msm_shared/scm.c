@@ -30,6 +30,7 @@
 #include <string.h>
 #include <err.h>
 #include <arch/ops.h>
+#include <libfdt.h>
 #include "scm.h"
 
 #pragma GCC optimize ("O0")
@@ -558,4 +559,90 @@ int qca_scm_sdi_v8(uint32_t dump_id)
 		return ret;
 
 	return desc.ret[0];
+}
+
+#ifndef CONFIG_SYS_CACHELINE_SIZE
+#define CONFIG_SYS_CACHELINE_SIZE       128
+#endif
+static uint8_t tz_buf[CONFIG_SYS_CACHELINE_SIZE];
+
+int qca_scm_call(uint32_t svc_id, uint32_t cmd_id, void *buf, size_t len)
+{
+	int ret = 0;
+
+	if (is_scm_armv8())
+	{
+		struct qca_scm_desc desc = {0};
+		memcpy(tz_buf, buf, len);
+
+		desc.arginfo = QCA_SCM_ARGS(2, SCM_READ_OP);
+		desc.args[0] = (uint32_t)tz_buf;
+		desc.args[1] = len;
+		ret = scm_call_64(svc_id, cmd_id, &desc);
+		/* qca_scm_call is called with len 1, hence tz_buf is enough */
+		arch_invalidate_cache_range((unsigned long)tz_buf,
+				(unsigned long)tz_buf + CONFIG_SYS_CACHELINE_SIZE);
+		memcpy(buf, tz_buf, len);
+	}
+	else
+	{
+		ret = scm_call(svc_id, cmd_id, NULL, 0, buf, len);
+	}
+	return ret;
+}
+
+int is_scm_sec_auth_available(uint32_t svc_id, uint32_t cmd_id)
+{
+	int ret;
+	uint32_t scm_ret;
+
+	if (is_scm_armv8())
+	{
+		struct qca_scm_desc desc = {0};
+
+		desc.arginfo = QCA_SCM_ARGS(1);
+		desc.args[0] = QCA_SCM_SIP_FNID(svc_id, cmd_id);
+
+		ret = scm_call_64(SCM_SVC_INFO, QCA_IS_CALL_AVAIL_CMD, &desc);
+		scm_ret = desc.ret[0];
+	}
+	else
+	{
+		uint32_t svc_cmd = cpu_to_fdt32((svc_id << SCM_SVC_ID_SHIFT) | cmd_id);
+
+		ret = scm_call(SCM_SVC_INFO, QCA_IS_CALL_AVAIL_CMD, &svc_cmd,
+				sizeof(svc_cmd), &scm_ret, sizeof(scm_ret));
+	}
+
+	if (!ret)
+		return fdt32_to_cpu(scm_ret);
+
+	return ret;
+}
+
+int qca_scm_secure_authenticate(void *cmd_buf, size_t cmd_len)
+{
+	int ret = 0;
+
+	if (is_scm_armv8())
+	{
+		struct qca_scm_desc desc = {0};
+
+		desc.arginfo = QCA_SCM_ARGS(3, SCM_VAL, SCM_VAL, SCM_IO_WRITE);
+		/* args[0] has the image SW ID*/
+		desc.args[0] = * ((unsigned long *)cmd_buf);
+		/* args[1] has the image size */
+		desc.args[1] = * (((unsigned long *)cmd_buf) + 1);
+		/* args[2] has the load address*/
+		desc.args[2] = * (((unsigned long *)cmd_buf) + 2);
+
+		ret = scm_call_64(SCM_SVC_BOOT, SCM_CMD_SEC_AUTH, &desc);
+	}
+	else
+	{
+		ret = scm_call(SCM_SVC_BOOT, SCM_CMD_SEC_AUTH, cmd_buf, cmd_len,
+									NULL, 0);
+	}
+
+	return ret;
 }

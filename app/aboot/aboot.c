@@ -69,6 +69,29 @@
 
 #include "scm.h"
 
+#define KERNEL_IMG_ID 0x17
+
+typedef struct {
+	unsigned int image_type;
+	unsigned int header_vsn_num;
+	unsigned int image_src;
+	unsigned char *image_dest_ptr;
+	unsigned int image_size;
+	unsigned int code_size;
+	unsigned char *signature_ptr;
+	unsigned int signature_size;
+	unsigned char *cert_chain_ptr;
+	unsigned int cert_chain_size;
+} mbn_header_t;
+
+typedef struct {
+	unsigned long kernel_img_id;
+	unsigned long kernel_load_size;
+	unsigned long kernel_load_addr;
+} kernel_img_info_t;
+
+kernel_img_info_t kernel_img_info;
+
 struct aarch64_hdr {
 	uint32_t code0; /* Executable code */
 	uint32_t code1; /* Executable code */
@@ -301,6 +324,8 @@ static char lk_splash_buf[LK_SPLASH_CMD_SIZE];
 
 /* Assuming unauthorized kernel image by default */
 static int auth_kernel_img = 0;
+/* Assuming unsigned kernel image by default*/
+static int signed_kernel_img = 0;
 
 static device_info device = {DEVICE_MAGIC, 0, 0};
 
@@ -858,7 +883,14 @@ int boot_linux_from_mmc(void)
 	struct dt_table *table;
 	void *dt_entry_ptr;
 	unsigned dt_table_offset;
+	unsigned dtb_offset = 0;
+	unsigned dtb_size = 0;
 #endif
+
+	mbn_header_t mbn_header;
+	char status = 0;
+	int ret;
+	unsigned int kernel_size = 0;
 
 	uhdr = (struct boot_img_hdr *)EMMC_BOOT_IMG_HEADER_ADDR;
 	if (!memcmp(uhdr->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE)) {
@@ -887,9 +919,46 @@ int boot_linux_from_mmc(void)
 		}
 	}
 
-	if (mmc_read(ptn + offset, (unsigned int *) buf, page_size)) {
-		dprintf(CRITICAL, "ERROR: Cannot read boot image header\n");
-                return -1;
+	/* Kernel Secure image Authentication */
+	ret = qca_scm_call(SCM_SVC_FUSE, QFPROM_IS_AUTHENTICATE_CMD, &status, sizeof(char));
+
+	if (ret == 0 && status == 1 ) {
+		signed_kernel_img = 1;
+		image_addr = (unsigned char *)target_get_scratch_address();
+		index = partition_get_index("0:HLOS");
+		kernel_size = (unsigned int)partition_get_size(index);
+
+		if (mmc_read(ptn, (void *)image_addr, kernel_size)) {
+			dprintf(CRITICAL, "ERROR: Cannot read secure boot image\n");
+			return -1;
+		}
+
+		kernel_img_info.kernel_img_id = KERNEL_IMG_ID;
+		kernel_img_info.kernel_load_addr = (unsigned int)image_addr;
+		kernel_img_info.kernel_load_size = kernel_size;
+		printf("kernel_addr = 0x%x\nkernel_size = %d\n", kernel_img_info.kernel_load_addr,
+								kernel_img_info.kernel_load_size);
+
+		ret = is_scm_sec_auth_available(SCM_SVC_BOOT, SCM_CMD_SEC_AUTH);
+		if (ret <= 0) {
+			printf("ERROR: Secure authentication scm call not supported\n");
+			return -1;
+		}
+		ret = qca_scm_secure_authenticate(&kernel_img_info, sizeof(kernel_img_info));
+		if (ret) {
+			printf("ERROR: Kernel image authentication failed\n");
+			return -1;
+		}
+
+		offset = sizeof(mbn_header);
+		/* Get kernelboot image header */
+		hdr = (struct boot_img_hdr *)((unsigned int)image_addr + offset);
+	}
+	else {
+		if (mmc_read(ptn + offset, (unsigned int *) buf, page_size)) {
+			dprintf(CRITICAL, "ERROR: Cannot read boot image header\n");
+			return -1;
+		}
 	}
 
 	if (memcmp(hdr->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE)) {
@@ -1037,21 +1106,37 @@ int boot_linux_from_mmc(void)
 		dprintf(INFO, "Loading boot image (%d): start\n",
 				kernel_actual + ramdisk_actual);
 
-		offset = page_size;
+		offset += page_size;
 
-		/* Load kernel */
-		if (read_kernel(ptn + offset, hdr, NULL, kernel_actual)) {
-			dprintf(CRITICAL, "ERROR: Cannot read kernel image\n");
-			return -1;
-		}
-		offset += kernel_actual;
+		if (signed_kernel_img == 1) {
 
-		/* Load ramdisk */
-		if(ramdisk_actual != 0)
-		{
-			if (mmc_read(ptn + offset, (void *)hdr->ramdisk_addr, ramdisk_actual)) {
-				dprintf(CRITICAL, "ERROR: Cannot read ramdisk image\n");
+			/* Load kernel */
+			if (read_kernel(0ull, hdr, image_addr + offset, kernel_actual)) {
+				dprintf(CRITICAL, "ERROR: Cannot read signed kernel image\n");
 				return -1;
+			}
+			offset += kernel_actual;
+
+			/* Load ramdisk */
+			if(ramdisk_actual != 0) {
+				memset((void *)hdr->ramdisk_addr, 0, ramdisk_actual);
+				memmove((void *)hdr->ramdisk_addr, (const void *)(image_addr + offset), ramdisk_actual);
+			}
+		}
+		else {
+			if (read_kernel(ptn + offset, hdr, NULL, kernel_actual)) {
+				dprintf(CRITICAL, "ERROR: Cannot read kernel image\n");
+				return -1;
+			}
+			offset += kernel_actual;
+
+			/* Load ramdisk */
+			if(ramdisk_actual != 0)
+			{
+				if (mmc_read(ptn + offset, (void *)hdr->ramdisk_addr, ramdisk_actual)) {
+					dprintf(CRITICAL, "ERROR: Cannot read ramdisk image\n");
+					return -1;
+				}
 			}
 		}
 		offset += ramdisk_actual;
@@ -1069,9 +1154,15 @@ int boot_linux_from_mmc(void)
 		if(hdr->dt_size != 0) {
 
 			/* Read the device tree table into buffer */
-			if(mmc_read(ptn + offset,(unsigned int *) dt_buf, page_size)) {
-				dprintf(CRITICAL, "ERROR: Cannot read the Device Tree Table\n");
-				return -1;
+			if (signed_kernel_img == 1) {
+				memset((unsigned int *) dt_buf, 0, page_size);
+				memmove((unsigned int *) dt_buf, (const void *)(image_addr + offset), page_size);
+			}
+			else {
+				if(mmc_read(ptn + offset,(unsigned int *) dt_buf, page_size)) {
+					dprintf(CRITICAL, "ERROR: Cannot read the Device Tree Table\n");
+					return -1;
+				}
 			}
 			table = (struct dt_table*) dt_buf;
 
@@ -1094,17 +1185,24 @@ int boot_linux_from_mmc(void)
 				return -1;
 			}
 
-			/* Validate and Read device device tree in the "tags_add */
+			/* Validate and Read device device tree in the "tags_addr */
 			if (check_aboot_addr_range_overlap(hdr->tags_addr, dt_size(table, dt_entry_ptr)))
 			{
 				dprintf(CRITICAL, "Device tree addresses overlap with aboot addresses.\n");
 				return -1;
 			}
 
-			if(mmc_read(ptn + offset + dt_offset(table, dt_entry_ptr),
-						 (void *)hdr->tags_addr, dt_size(table, dt_entry_ptr))) {
-				dprintf(CRITICAL, "ERROR: Cannot read device tree\n");
-				return -1;
+			dtb_offset = offset + dt_offset(table, dt_entry_ptr);
+			dtb_size = dt_size(table, dt_entry_ptr);
+			if (signed_kernel_img == 1) {
+				memset((void *)hdr->tags_addr, 0, dtb_size);
+				memmove((void *)hdr->tags_addr,	(const void *)(image_addr + dtb_offset), dtb_size);
+			}
+			else {
+				if(mmc_read(ptn + dtb_offset, (void *)hdr->tags_addr, dtb_size)) {
+					dprintf(CRITICAL, "ERROR: Cannot read device tree\n");
+					return -1;
+				}
 			}
 
 			/* Validate the tags_addr */
