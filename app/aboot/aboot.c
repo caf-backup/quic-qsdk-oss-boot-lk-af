@@ -901,6 +901,7 @@ int boot_linux_from_mmc(void)
 	char status = 0;
 	int ret;
 	unsigned int kernel_size = 0;
+	unsigned int active_part = 0;
 
 	uhdr = (struct boot_img_hdr *)EMMC_BOOT_IMG_HEADER_ADDR;
 	if (!memcmp(uhdr->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE)) {
@@ -911,8 +912,16 @@ int boot_linux_from_mmc(void)
 	if (!boot_into_recovery) {
 		index = partition_get_index("boot");
 
-		if (index == INVALID_PTN)
-			index = partition_get_index("0:HLOS");
+		if (index == INVALID_PTN) {
+			if (smem_bootconfig_info() == 0) {
+				active_part = get_rootfs_active_partition();
+				if (active_part)
+					index = partition_get_index("0:HLOS_1");
+				else
+					index = partition_get_index("0:HLOS");
+			} else
+				index = partition_get_index("0:HLOS");
+		}
 
 		ptn = partition_get_offset(index);
 		if(ptn == 0) {
