@@ -20,6 +20,7 @@
 #include <platform/timer.h>
 #include <platform/gpio.h>
 #include <reg.h>
+#include <app.h>
 #include <gsbi.h>
 #include <target.h>
 #include <platform.h>
@@ -31,6 +32,7 @@
 #include <stdlib.h>
 #include <libfdt.h>
 #include <mmc_wrapper.h>
+#include <err.h>
 
 board_ipq807x_params_t *gboard_param;
 
@@ -191,4 +193,62 @@ void fdt_fixup_version(void *fdt)
 	}
 
 	return;
+}
+int set_uuid_bootargs(char *boot_args, char *part_name, int buflen, bool gpt_flag)
+{
+	disk_partition_t disk_info;
+	int ret;
+	int len;
+
+	if (!boot_args || !part_name || buflen <=0 || buflen > MAX_BOOT_ARGS_SIZE)
+		return ERR_INVALID_ARGS;
+
+	ret = get_partition_info_efi_by_name(part_name, &disk_info);
+	if (ret) {
+		dprintf(INFO, "%s : name not found in gpt table.\n", part_name);
+		return ERR_INVALID_ARGS;
+	}
+
+	if ((len = strlcpy(boot_args, "root=PARTUUID=", buflen)) >= buflen)
+		return ERR_INVALID_ARGS;
+
+	boot_args += len;
+	buflen -= len;
+
+	if ((len = strlcpy(boot_args, disk_info.uuid, buflen)) >= buflen)
+		return ERR_INVALID_ARGS;
+
+	boot_args += len;
+	buflen -= len;
+
+	if (gpt_flag && (len = strlcpy(boot_args, " gpt rootwait nosmp", buflen)) >= buflen)
+		return ERR_INVALID_ARGS;
+
+	return 0;
+}
+
+int update_uuid(char *bootargs)
+{
+	int ret;
+
+	if (smem_bootconfig_info() == 0) {
+		ret = get_rootfs_active_partition();
+		if (ret) {
+			strlcpy(bootargs, "rootfsname=rootfs_1 gpt", MAX_BOOT_ARGS_SIZE);
+			ret  = set_uuid_bootargs(bootargs, "rootfs_1", MAX_BOOT_ARGS_SIZE, true);
+		} else {
+			strlcpy(bootargs, "rootfsname=rootfs gpt", MAX_BOOT_ARGS_SIZE);
+			ret  = set_uuid_bootargs(bootargs, "rootfs", MAX_BOOT_ARGS_SIZE, true);
+		}
+	} else {
+		strlcpy(bootargs, "rootfsname=rootfs gpt", MAX_BOOT_ARGS_SIZE);
+		ret  = set_uuid_bootargs(bootargs, "rootfs", MAX_BOOT_ARGS_SIZE, true);
+	}
+
+	if (ret) {
+		dprintf(INFO, "Error in updating UUID. using device name to mountrootfs\n");
+		return 0;
+	}
+
+	return 1;
 }

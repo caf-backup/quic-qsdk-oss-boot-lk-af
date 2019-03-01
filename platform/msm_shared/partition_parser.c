@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <crc32.h>
+#include <app.h>
 #include "mmc.h"
 #include "mmc_wrapper.h"
 #include "partition_parser.h"
@@ -348,6 +349,79 @@ mmc_boot_read_gpt(struct mmc_boot_host *mmc_host,
 err_out:
 	free(data);
 	return ret;
+}
+
+/*
+ * uuid_bin_to_str() - convert big endian binary data to string UUID or GUID.
+ * @param uuid_bin - pointer to binary data of UUID (big endian) [16B]
+ * @param uuid_str - pointer to allocated array for output string [37B]
+ */
+void uuid_bin_to_str(unsigned char *uuid_bin, char *uuid_str)
+{
+	const unsigned char guid_char_order[UUID_BIN_LEN] = {3, 2, 1, 0, 5, 4, 7, 6, 8,
+						9, 10, 11, 12, 13, 14, 15};
+	const unsigned char *char_order;
+	int i;
+
+	/*
+	 * UUID and GUID bin data - always in big endian:
+	 * 4B-2B-2B-2B-6B
+	 * be be be be be
+	 */
+	char_order = guid_char_order;
+
+	for (i = 0; i < 16; i++) {
+		sprintf(uuid_str, "%02x", uuid_bin[char_order[i]]);
+		uuid_str += 2;
+		switch (i) {
+		case 3:
+		case 5:
+		case 7:
+		case 9:
+			*uuid_str++ = '-';
+			break;
+		}
+	}
+}
+
+int get_partition_info_efi(int part_no, disk_partition_t *info)
+{
+	if (!info)
+		return -1;
+
+	if (part_no > NUM_PARTITIONS) {
+		dprintf(INFO, "******invalid part number***: %d\n", part_no);
+		return -1;
+	}
+
+	/* update UUID of all the partition */
+	uuid_bin_to_str(partition_entries[part_no].unique_partition_guid,
+			info->uuid);
+
+	/* update name of partition */
+	memcpy(info->part_name, partition_entries[part_no].name,
+			UNIQUE_PARTITION_GUID_SIZE);
+
+	return 0;
+}
+
+
+int get_partition_info_efi_by_name(const char *name, disk_partition_t *info)
+{
+	int ret;
+	int i;
+	for (i = 1; i < NUM_PARTITIONS; i++) {
+		ret = get_partition_info_efi(i, info);
+		if (ret != 0) {
+			/* no more entries in table */
+			return -1;
+		}
+		if (strcmp(name, (const char *)info->part_name) == 0) {
+			/* matched */
+			return 0;
+		}
+	}
+	return -2;
 }
 
 static unsigned int write_mbr_in_blocks(unsigned size, unsigned char *mbrImage)

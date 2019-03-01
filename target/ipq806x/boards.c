@@ -31,6 +31,7 @@
 #include <partition_parser.h>
 #include <stdlib.h>
 #include <libfdt.h>
+#include <app.h>
 
 board_ipq806x_params_t *gboard_param;
 
@@ -1501,5 +1502,10 @@ void fdt_fixup_version(void *fdt)
 	}
 
 	return;
+}
+
+int update_uuid(char *bootargs)
+{
+	return 0;
 }
 

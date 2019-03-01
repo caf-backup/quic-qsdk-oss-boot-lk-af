@@ -33,8 +33,14 @@
 #include <scm.h>
 #include <board.h>
 #include <smem.h>
+#include <string.h>
+#include <err.h>
+
+#include "smem.h"
 
 static struct smem *smem = (void *)(MSM_SHARED_BASE);
+
+qca_smem_bootconfig_info_t qca_smem_bootconfig_info;
 
 /* buf MUST be 4byte aligned, and len MUST be a multiple of 8. */
 unsigned smem_read_alloc_entry(smem_mem_type_t type, void *buf, int len)
@@ -56,7 +62,6 @@ unsigned smem_read_alloc_entry(smem_mem_type_t type, void *buf, int len)
 		return 1;
 
 	size = readl(&ainfo->size);
-
 	if (size != (unsigned)((len + 7) & ~0x00000007))
 		return 1;
 
@@ -135,4 +140,34 @@ int ipq_get_tz_version(char *version_name, int buf_size)
 
 	snprintf(version_name, buf_size, "%s\n", version_name);
 	return ret;
+}
+
+/*
+ * smem_bootconfig_info - retrieve bootconfig flags
+ */
+int smem_bootconfig_info(void)
+{
+	unsigned ret;
+	ret = smem_read_alloc_entry(SMEM_BOOT_DUALPARTINFO,
+			&qca_smem_bootconfig_info, sizeof(qca_smem_bootconfig_info_t));
+
+	if ((ret != 0) ||
+		(qca_smem_bootconfig_info.magic_start != _SMEM_DUAL_BOOTINFO_MAGIC_START) ||
+		(qca_smem_bootconfig_info.magic_end != _SMEM_DUAL_BOOTINFO_MAGIC_END))
+			return ERR_ENOMSG;
+
+	return 0;
+}
+
+unsigned int get_rootfs_active_partition(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < qca_smem_bootconfig_info.numaltpart; i++) {
+		if (strncmp("rootfs", qca_smem_bootconfig_info.per_part_entry[i].name,
+					ALT_PART_NAME_LENGTH) == 0)
+			return qca_smem_bootconfig_info.per_part_entry[i].primaryboot;
+	}
+
+	return 0; /* alt partition not available */
 }

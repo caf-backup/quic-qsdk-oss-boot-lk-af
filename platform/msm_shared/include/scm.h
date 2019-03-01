@@ -64,13 +64,16 @@ typedef struct {
 #define SSD_ENCRYPT_ID              0x02
 #define TZBSP_BUILD_VER_QUERY_CMD	0x4
 
-#define SCM_VAL		0
-#define SCM_IO_READ     1
-#define SCM_IO_WRITE    2
+#define SCM_VAL		0x0
+#define SCM_IO_READ     0x1
+#define SCM_IO_WRITE    0x2
 
 #define SCM_SVC_BOOT                    0x1
 #define SCM_SVC_WR                      0x10
 #define SCM_SVC_RD                      0x12
+#define QFPROM_IS_AUTHENTICATE_CMD      0x7
+#define SCM_CMD_SEC_AUTH                0x15
+#define SCM_SVC_ID_SHIFT                0xA
 
 static uint32 smc(uint32 cmd_addr);
 
@@ -232,5 +235,8 @@ void __attribute__ ((noreturn)) jump_kernel64(void *kernel_entry,
 int qca_scm_call_write(uint32_t svc_id,
 		       uint32_t cmd_id, uint32_t *addr, uint32_t val);
 int qca_scm_sdi_v8(uint32_t dump_id);
+int qca_scm_call(uint32_t svc_id, uint32_t cmd_id, void *buf, size_t len);
+int qca_scm_secure_authenticate(void *cmd_buf, size_t cmd_len);
+int is_scm_sec_auth_available(uint32_t svc_id, uint32_t cmd_id);
 
 #endif

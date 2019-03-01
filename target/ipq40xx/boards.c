@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <libfdt.h>
 #include <mmc_wrapper.h>
+#include <app.h>
 
 board_ipq40xx_params_t *gboard_param;
 
@@ -1529,4 +1530,8 @@ void fdt_fixup_version(void *fdt)
 	}
 
 	return;
+}
+int update_uuid(char *bootargs)
+{
+	return 0;
 }
