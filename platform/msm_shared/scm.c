@@ -564,7 +564,7 @@ int qca_scm_sdi_v8(uint32_t dump_id)
 #ifndef CONFIG_SYS_CACHELINE_SIZE
 #define CONFIG_SYS_CACHELINE_SIZE       128
 #endif
-static uint8_t tz_buf[CONFIG_SYS_CACHELINE_SIZE];
+static uint8_t tz_buf[CONFIG_SYS_CACHELINE_SIZE] __attribute__ ((aligned(CONFIG_SYS_CACHELINE_SIZE)));
 
 int qca_scm_call(uint32_t svc_id, uint32_t cmd_id, void *buf, size_t len)
 {
@@ -580,8 +580,8 @@ int qca_scm_call(uint32_t svc_id, uint32_t cmd_id, void *buf, size_t len)
 		desc.args[1] = len;
 		ret = scm_call_64(svc_id, cmd_id, &desc);
 		/* qca_scm_call is called with len 1, hence tz_buf is enough */
-		arch_invalidate_cache_range((unsigned long)tz_buf,
-				(unsigned long)tz_buf + CONFIG_SYS_CACHELINE_SIZE);
+		arch_invalidate_cache_range((addr_t)tz_buf,
+					    CONFIG_SYS_CACHELINE_SIZE);
 		memcpy(buf, tz_buf, len);
 	}
 	else
