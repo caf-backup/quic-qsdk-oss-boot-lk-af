@@ -55,6 +55,11 @@ void crypto_eng_init(void)
 	crypto5_init(&dev);
 }
 
+void crypto_bam_irq_disable(void)
+{
+	bam_sys_pipe_irq_disable(&dev);
+}
+
 void crypto_set_sha_ctx(void *ctx_ptr,
 						unsigned int bytes_to_write,
 						crypto_auth_alg_type auth_alg,

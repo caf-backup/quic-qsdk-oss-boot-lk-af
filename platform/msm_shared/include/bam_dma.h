@@ -251,6 +251,8 @@ struct cmd_element {
 } __PACKED;
 
 void bam_init(struct bam_instance *bam);
+void bam_disable_pipe_interrupts(struct bam_instance *bam,
+				 uint8_t pipe_num);
 void bam_sys_pipe_init(struct bam_instance *bam,
                        uint8_t pipe_num);
 int bam_pipe_fifo_init(struct bam_instance *bam,

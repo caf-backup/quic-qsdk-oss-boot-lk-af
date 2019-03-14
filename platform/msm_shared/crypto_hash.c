@@ -75,6 +75,8 @@ hash_find(unsigned char *addr, unsigned int size, unsigned char *digest,
 	if (ret_val != CRYPTO_SHA_ERR_NONE) {
 		dprintf(CRITICAL, "crypto_sha256 returns error %d\n", ret_val);
 	}
+
+	crypto_bam_irq_disable();
 }
 
 /*

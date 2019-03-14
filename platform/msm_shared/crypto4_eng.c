@@ -235,6 +235,10 @@ void crypto_eng_init(void)
 	return;
 }
 
+void crypto_bam_irq_disable(void)
+{
+}
+
 /*
  * Function to set various SHAx registers in CRYPTO based on algorithm type.
  */

@@ -122,6 +122,25 @@ bam_wait_int_error:
 	return BAM_RESULT_FAILURE;
 }
 
+void bam_disable_pipe_interrupts(struct bam_instance *bam, uint8_t pipe_num)
+{
+	uint32_t val;
+
+	/* Do read-modify-write */
+	val = readl(BAM_IRQ_SRCS_MSK(bam->base, bam->ee));
+	writel(val & ~(1 << bam->pipe[pipe_num].pipe_num),
+		BAM_IRQ_SRCS_MSK(bam->base, bam->ee));
+
+	/* remove all pipe interrupt masks */
+	writel(0, BAM_P_IRQ_ENn(bam->pipe[pipe_num].pipe_num, bam->base));
+
+	if (bam->pipe[pipe_num].int_mode)
+	{
+		/* mask the interrupt */
+		mask_interrupt(bam->pipe[pipe_num].spi_num);
+	}
+}
+
 /* Enable BAM and pipe level interrupts */
 void bam_enable_interrupts(struct bam_instance *bam, uint8_t pipe_num)
 {
