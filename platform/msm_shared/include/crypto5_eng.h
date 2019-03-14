@@ -165,6 +165,7 @@ struct crypto_init_params
 
 void crypto5_init_params(struct crypto_dev *dev, struct crypto_init_params *params);
 void crypto5_init(struct crypto_dev *dev);
+void bam_sys_pipe_irq_disable(struct crypto_dev *dev);
 void crypto5_set_ctx(struct crypto_dev *dev,
 					 void *ctx_ptr,
 					 crypto_auth_alg_type auth_alg);

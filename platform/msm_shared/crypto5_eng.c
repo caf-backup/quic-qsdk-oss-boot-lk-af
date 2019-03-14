@@ -199,6 +199,14 @@ static void crypto_add_cmd_desc(struct crypto_dev *dev, uint8_t flags)
 	dev->cd_start = dev->ce_array_index;
 }
 
+void bam_sys_pipe_irq_disable(struct crypto_dev *dev)
+{
+	/* disable read pipe IRQ */
+	bam_disable_pipe_interrupts(&dev->bam, CRYPTO_READ_PIPE_INDEX);
+	/* disable write pipe IRQ */
+	bam_disable_pipe_interrupts(&dev->bam, CRYPTO_WRITE_PIPE_INDEX);
+}
+
 static int crypto_bam_init(struct crypto_dev *dev)
 {
 	uint32_t bam_ret;
