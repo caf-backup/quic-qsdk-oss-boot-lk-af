@@ -90,6 +90,8 @@ extern void crypto_eng_reset(void);
 
 extern void crypto_eng_init(void);
 
+extern void crypto_bam_irq_disable(void);
+
 extern void crypto_set_sha_ctx(void *ctx_ptr,
 			       unsigned int bytes_to_write,
 			       crypto_auth_alg_type auth_alg,

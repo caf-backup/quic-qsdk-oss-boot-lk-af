@@ -65,6 +65,10 @@ void crypto_eng_init(void)
 	wr_ce(val, CRYPTO3_CONFIG);
 }
 
+void crypto_bam_irq_disable(void)
+{
+}
+
 /*
  * Function to set various SHAx registers in CRYPTO3 based on algorithm type.
  */
