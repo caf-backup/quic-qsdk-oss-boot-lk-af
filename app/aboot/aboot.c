@@ -955,8 +955,6 @@ int boot_linux_from_mmc(void)
 		kernel_img_info.kernel_img_id = KERNEL_IMG_ID;
 		kernel_img_info.kernel_load_addr = (unsigned int)image_addr;
 		kernel_img_info.kernel_load_size = kernel_size;
-		printf("kernel_addr = 0x%x\nkernel_size = %d\n", kernel_img_info.kernel_load_addr,
-								kernel_img_info.kernel_load_size);
 
 		ret = is_scm_sec_auth_available(SCM_SVC_BOOT, SCM_CMD_SEC_AUTH);
 		if (ret <= 0) {
@@ -969,9 +967,14 @@ int boot_linux_from_mmc(void)
 			return -1;
 		}
 
+		dprintf(INFO, "Secure image authentication successful\n");
+
 		offset = sizeof(mbn_header);
+
+		memmove((void*) image_addr, (char *)(image_addr + offset), kernel_size - offset);
+
 		/* Get kernelboot image header */
-		hdr = (struct boot_img_hdr *)((unsigned int)image_addr + offset);
+		memcpy(buf, image_addr, page_size);
 	}
 	else {
 		if (mmc_read(ptn + offset, (unsigned int *) buf, page_size)) {
@@ -1050,7 +1053,7 @@ int boot_linux_from_mmc(void)
 		}
 
 		/* Read image without signature */
-		if (mmc_read(ptn + offset, (void *)image_addr, imagesize_actual))
+		if ((!signed_kernel_img) && mmc_read(ptn + offset, (void *)image_addr, imagesize_actual))
 		{
 			dprintf(CRITICAL, "ERROR: Cannot read boot image\n");
 				return -1;
@@ -1067,7 +1070,7 @@ int boot_linux_from_mmc(void)
 		}
 
 		/* Read signature */
-		if(mmc_read(ptn + offset, (void *)(image_addr + offset), page_size))
+		if ((!signed_kernel_img) && mmc_read(ptn + offset, (void *)(image_addr + offset), page_size))
 		{
 			dprintf(CRITICAL, "ERROR: Cannot read boot image signature\n");
 			return -1;
@@ -1125,7 +1128,7 @@ int boot_linux_from_mmc(void)
 		dprintf(INFO, "Loading boot image (%d): start\n",
 				kernel_actual + ramdisk_actual);
 
-		offset += page_size;
+		offset = page_size;
 
 		if (signed_kernel_img == 1) {
 
