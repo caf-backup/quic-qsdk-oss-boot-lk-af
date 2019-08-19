@@ -173,46 +173,41 @@ void clock_config_i2c(uint8_t id, uint32_t freq)
 /* Configure MMC clock */
 void clock_config_mmc(uint32_t interface, uint32_t freq)
 {
-	/* Disalbe MCI_CLK before changing the sdcc clock */
-	mmc_boot_mci_clk_disable();
-
-	/* Select SDCC clock source as DDR_PLL_SDCC1_CLK  192MHz */
-	writel(0x100, GCC_SDCC1_APPS_RCGR);
-	/* Update APPS_CMD_RCGR to reflect source selection */
-	writel(0x1, GCC_SDCC1_APPS_CMD_RCGR);
+	/* Enable root clock generator */
+	writel(readl(GCC_SDCC1_APPS_CBCR)|0x1, GCC_SDCC1_APPS_CBCR);
+	/* Add 10us delay for CLK_OFF to get cleared */
 	udelay(10);
 
 	switch(freq)
 	{
 	case MMC_CLK_400KHZ:
-		/* Set root clock generator to bypass mode */
-		writel(0x0, GCC_SDCC1_APPS_CBCR);
+		writel(0x2017, GCC_SDCC1_APPS_CFG_RCGR);
+		/* Delay for clock operation complete */
 		udelay(10);
-		/* Choose divider for 400KHz */
-		writel(0x1e4 , GCC_SDCC1_MISC);
-		/* Enable root clock generator */
-		writel(0x1, GCC_SDCC1_APPS_CBCR);
+		writel(0x1, GCC_SDCC1_APPS_M);
+		writel(0xFC, GCC_SDCC1_APPS_N);
+		writel(0xFD, GCC_SDCC1_APPS_D);
 		udelay(10);
 		break;
 	case MMC_CLK_48MHZ:
 	case MMC_CLK_50MHZ: /* Max supported is 48MHZ */
-		/* Set root clock generator to bypass mode */
-		writel(0x0, GCC_SDCC1_APPS_CBCR);
+		writel(0x40F, GCC_SDCC1_APPS_CFG_RCGR);
+		/* Delay for clock operation complete */
 		udelay(10);
-		/* Choose divider for 48MHz */
-		writel(0x3, GCC_SDCC1_MISC);
-		/* Enable root clock generator */
-		writel(0x1, GCC_SDCC1_APPS_CBCR);
+		writel(0x1, GCC_SDCC1_APPS_M);
+		writel(0xFC, GCC_SDCC1_APPS_N);
+		writel(0xFD, GCC_SDCC1_APPS_D);
+		/* Delay for clock operation complete */
 		udelay(10);
 		break;
 	case MMC_CLK_200MHZ:
-		/* Set root clock generator to bypass mode */
-		writel(0x0, GCC_SDCC1_APPS_CBCR);
+		writel(0x20B, GCC_SDCC1_APPS_CFG_RCGR);
+		/* Delay for clock operation complete */
 		udelay(10);
-		/* Choose divider for 48MHz */
-		writel(0x0, GCC_SDCC1_MISC);
-		/* Enable root clock generator */
-		writel(0x1, GCC_SDCC1_APPS_CBCR);
+		writel(0x1, GCC_SDCC1_APPS_M);
+		writel(0xFC, GCC_SDCC1_APPS_N);
+		writel(0xFD, GCC_SDCC1_APPS_D);
+		/* Delay for clock operation complete */
 		udelay(10);
 		break;
 
@@ -222,8 +217,11 @@ void clock_config_mmc(uint32_t interface, uint32_t freq)
 
 	};
 
-	/* Enable MCI clk */
-	mmc_boot_mci_clk_enable();
+	/* Update APPS_CMD_RCGR to reflect source selection */
+	writel(readl(GCC_SDCC1_APPS_CMD_RCGR)|0x1, GCC_SDCC1_APPS_CMD_RCGR);
+	/* Add 10us delay for clock update to complete */
+	udelay(10);
+
 }
 
 /* Intialize MMC clock */
