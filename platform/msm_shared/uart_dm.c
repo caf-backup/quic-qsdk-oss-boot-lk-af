@@ -232,12 +232,6 @@ msm_boot_uart_dm_read(uint32_t base, unsigned int *data, int wait)
 		writel(MSM_BOOT_UART_DM_CMD_RESET_ERR_STAT, MSM_BOOT_UART_DM_CR(base));
 	}
 
-	/* RX FIFO is ready; read a word. */
-	*data = readl(MSM_BOOT_UART_DM_RF(base, 0));
-
-	/* increment the total count of chars we've read so far */
-	rx_chars_read_since_last_xfer += 4;
-
 	/* Rx transfer ends when one of the conditions is met:
 	 * - The number of characters received since the end of the previous
 	 *   xfer equals the value written to DMRX at Transfer Initialization
@@ -271,9 +265,15 @@ msm_boot_uart_dm_read(uint32_t base, unsigned int *data, int wait)
 
 	}
 
+	/* RX FIFO is ready; read a word. */
+	*data = readl(MSM_BOOT_UART_DM_RF(base, 0));
+
+	/* increment the total count of chars we've read so far */
+	rx_chars_read_since_last_xfer += 4;
+
 	/* If there are still data left in FIFO we'll read them before
 	 * initializing RX Transfer again */
-	if ((rx_last_snap_count - rx_chars_read_since_last_xfer) >= 0) {
+	if ((rx_last_snap_count - rx_chars_read_since_last_xfer) > 0) {
 		return MSM_BOOT_UART_DM_E_SUCCESS;
 	}
 
@@ -443,6 +443,9 @@ int uart_getc(int port, bool wait)
 
 	byte = (int)word & 0xff;
 	word = word >> 8;
+	/* Skip NUL characters */
+	if (byte == 0x0)
+		return -1;
 
 	return byte;
 }
