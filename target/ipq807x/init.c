@@ -40,6 +40,7 @@
 #include <platform/timer.h>
 #include <platform/gpio.h>
 #include <platform/irqs.h>
+#include <platform/interrupts.h>
 #include <reg.h>
 #include <i2c_qup.h>
 #include <gsbi.h>
@@ -226,6 +227,31 @@ void i2c_ipq807x_init(uint8_t blsp_id, uint8_t qup_id)
 	i2c_qup_initialized = 1;
 }
 
+void crashdump_init(void)
+{
+	int ret;
+	ret = qca_scm_call_write(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
+				(uint32_t *)0x193D100, APPS_DLOAD_MAGIC);
+	if (ret)
+		dprintf(CRITICAL, "Error setting crashdump magic\n");
+	else
+		dprintf(INFO, "Crashdump MAGIC set\n");
+}
+
+static enum handler_return tzerr_irq_handler(void *arg)
+{
+	dprintf(CRITICAL, "NOC Error detected, Halting...\n");
+	halt();
+	return IRQ_HANDLED;
+}
+
+void enable_noc_error_detection(void)
+{
+	dprintf(INFO, "Enable tzerr IRQ\n");
+	register_int_handler(TZ_ERR_IRQ, tzerr_irq_handler, 0);
+	unmask_interrupt(TZ_ERR_IRQ);
+}
+
 void target_init(void)
 {
 	unsigned platform_id = board_platform_id();
@@ -236,6 +262,7 @@ void target_init(void)
 	dprintf(INFO, "board platform id is 0x%x\n",  platform_id);
 	dprintf(INFO, "board platform verson is 0x%x\n",  board_platform_ver());
 
+	enable_noc_error_detection();
 	target_sdc_init();
 	if (partition_read_table(mmc_host, (struct mmc_boot_card *)mmc_card))
 	{
