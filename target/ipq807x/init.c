@@ -59,6 +59,8 @@
 #include <partition_parser.h>
 #include <usb30_wrapper.h>
 #include <string.h>
+#include <kernel/mutex.h>
+#include <malloc.h>
 
 #define APPS_DLOAD_MAGIC			0x10
 #define CLEAR_MAGIC				0x0
@@ -82,6 +84,42 @@ extern struct mmc_card *get_mmc_card();
 extern void dmb(void);
 static struct qup_i2c_dev *dev = NULL;
 static int i2c_qup_initialized;
+
+#define TZ_INFO_GET_DIAG_ID	0x2
+#define SCM_SVC_INFO		0x6
+#define TZ_HK			BIT(2)
+#define TZBSP_DIAG_BUF_LEN	0x2000
+
+struct tzbsp_log_pos_t {
+        uint16_t wrap;          /* Ring buffer wrap-around ctr */
+        uint16_t offset;        /* Ring buffer current position */
+};
+
+struct tzbsp_diag_log_t {
+        struct tzbsp_log_pos_t log_pos; /* Ring buffer position mgmt */
+        uint8_t log_buf[1];             /* Open ended array to the end
+                                         * of the 4K IMEM buffer
+                                         */
+};
+
+/* Below structure to support AARCH64 TZ */
+struct ipq807x_tzbsp_diag_t_v8 {
+        uint32_t unused[7];     /* Unused variable is to support the
+                                 * corresponding structure in trustzone
+                                 * and size is varying based on AARCH64 TZ
+                                 */
+        uint32_t ring_off;
+        uint32_t unused1[571];
+        struct tzbsp_diag_log_t log;
+};
+
+struct tz_log_struct {
+	char *ker_buf;
+	char *copy_buf;
+	int buf_len;
+	int copy_len;
+	mutex_t lock;
+};
 
 /* Setting this variable to different values defines the
  * behavior of CE engine:
@@ -238,9 +276,82 @@ void crashdump_init(void)
 		dprintf(INFO, "Crashdump MAGIC set\n");
 }
 
+int display_tzlog(void)
+{
+	mutex_t lock;
+	char *ker_buf;
+	char *tmp_buf;
+	uint32_t buf_len, copy_len = 0;
+	uint16_t wrap, ring, offset;
+	struct tzbsp_diag_log_t *log;
+	struct ipq807x_tzbsp_diag_t_v8 *ipq807x_diag_buf;
+	int ret;
+
+	mutex_init(&lock);
+	mutex_acquire(&lock);
+
+	buf_len = TZBSP_DIAG_BUF_LEN;
+	ker_buf = malloc(buf_len);
+	if (!ker_buf) {
+		dprintf(CRITICAL, "malloc failed for ker_buf\n");
+		return NULL;
+	}
+
+	tmp_buf = malloc(buf_len);
+	if (!tmp_buf) {
+		dprintf(CRITICAL, "malloc failed for tmp_buf\n");
+		return NULL;
+	}
+	memset((void *)tmp_buf, 0, (size_t)buf_len);
+
+
+	/* SCM call to TZ to get the tz log */
+	ret = qca_scm_tz_log(SCM_SVC_INFO, TZ_INFO_GET_DIAG_ID,
+					ker_buf, buf_len);
+	if (ret != 0) {
+		dprintf(CRITICAL, "Error in getting tz log\n");
+		mutex_release(&lock);
+		mutex_destroy(&lock);
+		return -EIO;
+	}
+
+	ipq807x_diag_buf = (struct ipq807x_tzbsp_diag_t_v8 *)ker_buf;
+	ring = ipq807x_diag_buf->ring_off;
+	log = &ipq807x_diag_buf->log;
+
+	offset = log->log_pos.offset;
+	wrap = log->log_pos.wrap;
+
+	if (wrap != 0) {
+		memcpy(tmp_buf, (ker_buf + offset + ring),
+			(buf_len - offset - ring));
+		memcpy(tmp_buf + (buf_len - offset - ring),
+				(ker_buf + ring), offset);
+		copy_len = (buf_len - offset - ring) + offset;
+	}
+	else {
+		memcpy(tmp_buf, (ker_buf + ring), offset);
+		copy_len = offset;
+	}
+
+	/* display buffer to console*/
+	dprintf(INFO, "TZ LOG:\n\n");
+	for (uint32_t i = 0; i < copy_len; i++) {
+		printf("%c", (char)*tmp_buf);
+		tmp_buf += 1;
+	}
+	printf("\n");
+
+	mutex_release(&lock);
+	mutex_destroy(&lock);
+
+	return 0;
+}
+
 static enum handler_return tzerr_irq_handler(void *arg)
 {
 	dprintf(CRITICAL, "NOC Error detected, Halting...\n");
+	display_tzlog();
 	halt();
 	return IRQ_HANDLED;
 }

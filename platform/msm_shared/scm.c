@@ -42,6 +42,11 @@
 #  define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 #endif
 
+struct tz_log_read {
+        uint32_t log_buf;
+        uint32_t buf_size;
+};
+
 /**
  * alloc_scm_command() - Allocate an SCM command
  * @cmd_size: size of the command buffer
@@ -447,7 +452,6 @@ static int scm_call_64(uint32_t svc_id, uint32_t cmd_id, struct qca_scm_desc *de
 	int ret;
 	uint32_t fn_id = QCA_SCM_SIP_FNID(svc_id, cmd_id);
 
-
 	if (arglen > QCA_MAX_ARG_LEN) {
 		dprintf(INFO, "Error Extra args not supported\n");
 		for(;;);
@@ -676,6 +680,36 @@ int qca_scm_set_resettype(uint32_t reset_type)
 
 	if (!ret)
 		ret = fdt32_to_cpu(out);
+
+	return ret;
+}
+
+int qca_scm_tz_log(uint32_t svc_id, uint32_t cmd_id,
+			void *ker_buf, uint32_t buf_len)
+{
+	int ret;
+	uint32_t log_buf = (uint32_t) ker_buf;
+
+	if (is_scm_armv8()) {
+		struct qca_scm_desc desc = {0};
+
+		desc.args[0] = log_buf;
+		desc.args[1] = buf_len;
+		desc.arginfo = QCA_SCM_ARGS(2, SCM_IO_WRITE, SCM_VAL);
+
+		ret = scm_call_64(svc_id, cmd_id, &desc);
+		if (!ret)
+			ret = fdt32_to_cpu(desc.ret[0]);
+	}
+	else {
+		struct tz_log_read tzlog;
+
+		tzlog.log_buf = log_buf;
+		tzlog.buf_size = buf_len;
+
+		ret = scm_call(svc_id, cmd_id, &tzlog, sizeof(struct tz_log_read),
+								NULL, 0);
+	}
 
 	return ret;
 }
