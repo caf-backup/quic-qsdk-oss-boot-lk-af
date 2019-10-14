@@ -646,3 +646,26 @@ int qca_scm_secure_authenticate(void *cmd_buf, size_t cmd_len)
 
 	return ret;
 }
+
+int qca_scm_set_resettype(uint32_t reset_type)
+{
+	int ret = 0;
+
+	if (is_scm_armv8())
+	{
+		struct qca_scm_desc desc = {0};
+
+		desc.arginfo = QCA_SCM_ARGS(1, SCM_VAL);
+		desc.args[0] = reset_type;
+
+		ret = scm_call_64(SCM_SVC_BOOT, SCM_SVC_RESETTYPE_CMD, &desc);
+	}
+	else
+	{
+		uint32_t out;
+		ret = scm_call(SCM_SVC_BOOT, SCM_SVC_RESETTYPE_CMD, &reset_type,
+				sizeof(reset_type), &out, sizeof(out));
+	}
+
+	return ret;
+}
