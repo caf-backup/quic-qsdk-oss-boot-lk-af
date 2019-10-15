@@ -63,6 +63,7 @@
 #define CLEAR_MAGIC				0x0
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID 	0x9
 #define SCM_CMD_TZ_FORCE_DLOAD_ID 		0x10
+#define CDUMP_MODE				0x1
 
 #define CE1_INSTANCE		1
 #define CE_EE			1
@@ -264,9 +265,36 @@ void reboot_device(unsigned reboot_reason)
 {
 	writel(reboot_reason, RESTART_REASON_ADDR);
 
-	reset_crashdump();
-	writel(0, GCNT_PSHOLD);
-	mdelay(10000);
+	if (reboot_reason == CDUMP_MODE) {
+		dprintf(INFO, "CDUMP mode enabled\n");
+	}
+	else {
+		int ret;
+		uint32_t reset_type = 0x0;
+
+		ret = qca_scm_call_write(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
+					 (uint32_t *)0x193D100, CLEAR_MAGIC);
+		if (ret) {
+			dprintf(CRITICAL, "Error resetting crashdump magic\n");
+			return;
+		}
+
+		reset_crashdump();
+		ret = qca_scm_set_resettype(reset_type);
+		if (ret) {
+			dprintf(CRITICAL, "Error setting reset type\n");
+			return;
+		}
+
+	}
+
+	writel(1, MSM_WDT0_RST);
+	writel(0, MSM_WDT0_EN);
+	/* Set BITE_TIME to be 128ms*/
+	writel(0x1000, MSM_WDT0_BITE_TIME);
+	writel(1, MSM_WDT0_EN);
+	dmb();
+	mdelay(1000);
 
 	dprintf(CRITICAL, "Rebooting failed\n");
 }
