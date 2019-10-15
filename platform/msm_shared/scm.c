@@ -647,25 +647,35 @@ int qca_scm_secure_authenticate(void *cmd_buf, size_t cmd_len)
 	return ret;
 }
 
+/*
+ * qcom_scm_set_resettype() - configure cold or warm reset
+ * @reset type: 0 cold; 1 warm
+ * Returns 0 on success
+ */
 int qca_scm_set_resettype(uint32_t reset_type)
 {
+	uint32_t out;
 	int ret = 0;
 
-	if (is_scm_armv8())
-	{
+	if (is_scm_armv8()) {
 		struct qca_scm_desc desc = {0};
 
-		desc.arginfo = QCA_SCM_ARGS(1, SCM_VAL);
 		desc.args[0] = reset_type;
+		desc.arginfo = QCA_SCM_ARGS(1, SCM_VAL);
 
 		ret = scm_call_64(SCM_SVC_BOOT, SCM_SVC_RESETTYPE_CMD, &desc);
+		out = desc.ret[0];
 	}
-	else
-	{
-		uint32_t out;
-		ret = scm_call(SCM_SVC_BOOT, SCM_SVC_RESETTYPE_CMD, &reset_type,
-				sizeof(reset_type), &out, sizeof(out));
+	else {
+		uint32_t in;
+
+		in = cpu_to_fdt32(reset_type);
+		ret = scm_call(SCM_SVC_BOOT, SCM_SVC_RESETTYPE_CMD,
+				 &in, sizeof(in), &out, sizeof(out));
 	}
+
+	if (!ret)
+		ret = fdt32_to_cpu(out);
 
 	return ret;
 }
