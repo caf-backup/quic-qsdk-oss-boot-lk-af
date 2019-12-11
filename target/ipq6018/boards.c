@@ -49,33 +49,33 @@
 
 board_ipq6018_params_t *gboard_param;
 
-gpio_func_data_t uart4_gpio_hk01[] = {
+gpio_func_data_t uart2_gpio_cp02[] = {
 	{
-		.gpio = 23,
-		.func = 2,
-		.pull = GPIO_PULL_DOWN,
+		.gpio = 44,
+		.func = 1,
+		.pull = GPIO_NO_PULL,
 		.oe = GPIO_OE_ENABLE
 	},
 	{
-		.gpio = 24,
-		.func = 2,
+		.gpio = 45,
+		.func = 1,
 		.pull = GPIO_NO_PULL,
 		.oe = GPIO_OE_ENABLE
 	},
 };
 
-uart_cfg_t uart4_console_uart_hk01 = {
+uart_cfg_t uart2_console_uart_cp02 = {
 	.base           = GSBI_1,
 	.gsbi_base      = 0,
-	.uart_dm_base = UART4_DM_BASE,
-	.dbg_uart_gpio = uart4_gpio_hk01,
+	.uart_dm_base = UART2_DM_BASE,
+	.dbg_uart_gpio = uart2_gpio_cp02,
 };
 
 /* Board specific parameter Array */
 board_ipq6018_params_t board_params[] = {
 	{
 		.machid = MACH_TYPE_IPQ6018_AP_CP02_1_C1,
-		.console_uart_cfg = &uart4_console_uart_hk01,
+		.console_uart_cfg = &uart2_console_uart_cp02,
 		.dtb_config_name = { "config@cp02-c1" },
 	},
 };
