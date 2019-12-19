@@ -29,7 +29,7 @@
 #ifndef __PLATFORM_IPQ806X_CLOCK_H
 #define __PLATFORM_IPQ806X_CLOCK_H
 
-#define UART_DM_CLK_RX_TX_BIT_RATE 0xEE
+#define UART_DM_CLK_RX_TX_BIT_RATE 0xFF
 
 #define REG(off)	(MSM_CLK_CTL_BASE + (off))
 #define REG_GCC(off)	(MSM_APCS_GCC_BASE + (off))
