@@ -74,33 +74,13 @@ uart_cfg_t uart4_console_uart_hk01 = {
 /* Board specific parameter Array */
 board_ipq6018_params_t board_params[] = {
 	{
-		.machid = MACH_TYPE_IPQ807X_AP_HK01_1_C1,
+		.machid = MACH_TYPE_IPQ6018_AP_CP02_1_C1,
 		.console_uart_cfg = &uart4_console_uart_hk01,
-		.dtb_config_name = { "config@hk01" },
-	},
-	{
-		.machid = MACH_TYPE_IPQ807X_AP_HK01_1_C2,
-		.console_uart_cfg = &uart4_console_uart_hk01,
-		.dtb_config_name = { "config@hk01.c2" },
-	},
-	{
-		.machid = MACH_TYPE_IPQ807X_AP_HK01_1_C3,
-		.console_uart_cfg = &uart4_console_uart_hk01,
-		.dtb_config_name = { "config@hk01.c3" },
-	},
-	{
-		.machid = MACH_TYPE_IPQ807X_AP_HK01_1_C4,
-		.console_uart_cfg = &uart4_console_uart_hk01,
-		.dtb_config_name = { "config@hk01.c4" },
-	},
-	{
-		.machid = MACH_TYPE_IPQ807X_AP_HK01_1_C5,
-		.console_uart_cfg = &uart4_console_uart_hk01,
-		.dtb_config_name = { "config@hk01.c5" },
+		.dtb_config_name = { "config@cp02-c1" },
 	},
 };
 
-#define NUM_IPQ807X_BOARDS	ARRAY_SIZE(board_params)
+#define NUM_IPQ6018_BOARDS	ARRAY_SIZE(board_params)
 
 board_ipq6018_params_t *get_board_param(unsigned int machid)
 {
@@ -109,7 +89,7 @@ board_ipq6018_params_t *get_board_param(unsigned int machid)
 	if (gboard_param)
 		return gboard_param;
 
-	for (index = 0; index < NUM_IPQ807X_BOARDS; index++) {
+	for (index = 0; index < NUM_IPQ6018_BOARDS; index++) {
 		if (machid == board_params[index].machid) {
 			gboard_param = &board_params[index];
 			return &board_params[index];
