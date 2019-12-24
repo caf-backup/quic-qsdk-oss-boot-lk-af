@@ -4,7 +4,7 @@ INCLUDES += -I$(LOCAL_DIR)/include -I$(LK_TOP_DIR)/platform/msm_shared
 
 PLATFORM := ipq6018
 
-MEMBASE := 0x4A900000 # SDRAM
+MEMBASE := 0x4A400000 # SDRAM
 MEMSIZE := 0x00100000 # 1MB
 
 #BASE_ADDR        := 0x41500000	# banana
