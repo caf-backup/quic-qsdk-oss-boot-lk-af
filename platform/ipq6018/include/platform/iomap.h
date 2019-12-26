@@ -35,6 +35,7 @@
 
 #include <sys/types.h>
 
+#define CONFIG_SMEM_VER12
 #define MSM_IOMAP_BASE              0x00000000
 #define MSM_IOMAP_END               0x08000000
 
@@ -47,8 +48,9 @@
 #define MSM_APPS_DLOAD_MAGIC2_ADDR	(MSM_SHARED_IMEM_BASE + 0x4)
 #define RESTART_REASON_ADDR		(MSM_SHARED_IMEM_BASE + 0x65C)
 
-#define APPS_SS_BASE                0x0B000000
-#define MSM_SHARED_BASE			0x4AB00000
+#define APPS_SS_BASE			0x0B000000
+#define MSM_SHARED_BASE			0x4AA00000
+#define CONFIG_QCA_SMEM_SIZE		0x100000
 
 #define MSM_TCSR_BASE			0x194b000
 #define TCSR_USB_HSPHY_CONFIG		0xC
