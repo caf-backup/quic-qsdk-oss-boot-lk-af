@@ -79,7 +79,7 @@ static void *entry_to_item(struct smem_private_entry *e)
 	return p + sizeof(*e) + LE16(e->padding_hdr);
 }
 
-static void *qcom_smem_get_private(struct smem_partition_header *phdr,
+static void *qti_smem_get_private(struct smem_partition_header *phdr,
 							unsigned item,
 							size_t *size)
 {
@@ -105,7 +105,7 @@ static void *qcom_smem_get_private(struct smem_partition_header *phdr,
 	return ERR_PTR(ERR_NOT_FOUND);
 }
 
-static int qcom_smem_enumerate_partitions(void)
+static int qti_smem_enumerate_partitions(void)
 {
 	struct smem_partition_header *header;
 	struct smem_ptable_entry *entry;
@@ -188,14 +188,14 @@ smem_read_alloc_entry_offset(smem_mem_type_t type, void *buf, int len,
 		return 1;
 
 	if(smem_enumeration_status == smem_enu_no_init) {
-		if (qcom_smem_enumerate_partitions()) {
+		if (qti_smem_enumerate_partitions()) {
 			smem_enumeration_status = smem_enu_failed;
 			return 1;
 		}
 	}
 
         if ( smem_enumeration_status == smem_enu_sucess) {
-		ptr = qcom_smem_get_private(smem_cmn_partition,type, &size);
+		ptr = qti_smem_get_private(smem_cmn_partition,type, &size);
 		if (IS_ERR(ptr)) {
 			return 1;
 		}
