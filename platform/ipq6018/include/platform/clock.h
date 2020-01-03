@@ -35,6 +35,10 @@
 #define REG_GCC(off)	(MSM_APCS_GCC_BASE + (off))
 #define REG_LPA(off)	(MSM_LPASS_CLK_CTL_BASE + (off))
 
+#define CMD_UPDATE	0x1
+#define ROOT_EN		0x2
+#define CLK_ENABLE	0x1
+
 /* Peripheral clock registers. */
 #define GCC_RPU_CR				REG(0x0F80)
 #define GCC_RPU_EAR				REG(0x0F84)
