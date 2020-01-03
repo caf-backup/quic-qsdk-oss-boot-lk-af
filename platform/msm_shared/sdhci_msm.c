@@ -143,6 +143,7 @@ void sdhci_msm_init(struct sdhci_host *host, struct sdhci_msm_data *config)
 {
 	uint32_t io_switch;
 
+#ifndef SDCC_MCI_REMOVED
 	/* Disable HC mode */
 	RMWREG32((config->pwrctl_base + SDCC_MCI_HC_MODE), SDHCI_HC_START_BIT, SDHCI_HC_WIDTH, 0);
 
@@ -154,7 +155,15 @@ void sdhci_msm_init(struct sdhci_host *host, struct sdhci_msm_data *config)
 
 	/* Enable sdhc mode */
 	RMWREG32((config->pwrctl_base + SDCC_MCI_HC_MODE), SDHCI_HC_START_BIT, SDHCI_HC_WIDTH, SDHCI_HC_MODE_EN);
-
+#else
+	/* Vendor specific register is not reset during the soft reset of the
+	 * controller. If the previous stage bootloaders leave the value to unknown
+	 * state there could be failures while initilizing the card. Set the vendor
+	 * specific register to its reset value to make sure the register is in its
+	 * reset state.
+	 */
+	REG_WRITE32(host, 0xA1C, SDCC_VENDOR_SPECIFIC_FUNC);
+#endif
 	/*
 	 * Reset the controller
 	 */
@@ -454,8 +463,10 @@ static uint32_t sdhci_msm_cdclp533_calibration(struct sdhci_host *host)
 	/* Configure the clocks needed for CDC */
 	clock_config_cdc(host->msm_host->slot);
 
+#ifndef SDCC_MCI_REMOVED
 	/* Set the FF_CLK_SW_RST_DIS to 1 */
 	REG_WRITE32(host, (REG_READ32(host, SDCC_MCI_HC_MODE) | FW_CLK_SW_RST_DIS), SDCC_MCI_HC_MODE);
+#endif
 
 	/* Write 1 to CMD_DAT_TRACK_SEL field in DLL_CONFIG */
 	REG_WRITE32(host, (REG_READ32(host, SDCC_DLL_CONFIG_REG) | CMD_DAT_TRACK_SEL), SDCC_DLL_CONFIG_REG);
@@ -647,7 +658,9 @@ out:
  */
 void sdhci_mode_disable(struct sdhci_host *host)
 {
+#ifndef SDCC_MCI_REMOVED
 	/* Disable HC mode */
 	RMWREG32((host->msm_host->pwrctl_base + SDCC_MCI_HC_MODE), SDHCI_HC_START_BIT, SDHCI_HC_WIDTH, 0);
+#endif
 }
 

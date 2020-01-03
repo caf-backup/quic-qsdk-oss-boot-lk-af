@@ -143,6 +143,7 @@ void target_sdc_init()
 	config.hs400_support = 0;
 	config.hs200_support = 0;
 	config.ddr_support = 0;
+	config.use_io_switch = 1;
 
 	if (!(mmc_dev = mmc_init(&config))) {
 		dprintf(CRITICAL, "mmc init failed!");
