@@ -72,7 +72,11 @@ typedef struct {
 #define SCM_SVC_WR                      0x10
 #define SCM_SVC_RD                      0x12
 #define QFPROM_IS_AUTHENTICATE_CMD      0x7
+#ifndef PLATFORM_IPQ6018
 #define SCM_CMD_SEC_AUTH                0x15
+#else
+#define SCM_CMD_SEC_AUTH                0x1F
+#endif
 #define SCM_SVC_ID_SHIFT                0xA
 #define SCM_SVC_RESETTYPE_CMD		0x18
 
