@@ -50,9 +50,9 @@
 #define SDCC2_PWRCTL_IRQ	(GIC_SPI_START + 221)
 
 
-#define BLSP_QUP_IRQ(blsp_id, qup_id)          ((blsp_id == 1) ? \
+#define BLSP_QUP_IRQ(blsp_id, qup_id)          ((qup_id < 4) ? \
                                                ((GIC_SPI_START + 95) + qup_id):\
-                                               ((GIC_SPI_START + 299) + qup_id))
+                                               ((GIC_SPI_START + 299) + qup_id - 4))
 
 /* Retrofit universal macro names */
 #define INT_USB_HS                  USB1_HS_IRQ

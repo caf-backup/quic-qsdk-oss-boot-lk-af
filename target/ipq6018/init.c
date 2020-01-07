@@ -74,12 +74,13 @@
 #define CE_ARRAY_SIZE		20
 #define MSM_CE1_BAM_BASE	0x00704000
 #define MSM_CE1_BASE		0x0073a000
+#define I2C_STATUS_ERROR_MASK 0x38000FC
 
 extern struct mmc_card *get_mmc_card();
 
 extern void dmb(void);
 static struct qup_i2c_dev *dev = NULL;
-static int i2c_qup_initialized;
+static int i2c_qup_initialized = -1;
 
 /* Setting this variable to different values defines the
  * behavior of CE engine:
@@ -179,6 +180,9 @@ uint8_t i2c_read_reg(uint8_t addr, uint8_t reg, uint8_t *val, unsigned short len
 			dprintf(INFO, "Read reg %x failed\n", err);
 			return err;
 		}
+		else {
+			ret = err & I2C_STATUS_ERROR_MASK;
+		}
 	} else {
 		dprintf(INFO, "eeprom_read_reg: qup_i2c_init() failed\n");
 		return -1;
@@ -217,12 +221,12 @@ void i2c_write_reg(uint8_t addr, uint8_t reg, uint8_t *val, unsigned short len)
 
 void i2c_ipq6018_init(uint8_t blsp_id, uint8_t qup_id)
 {
-	dev = qup_blsp_i2c_init(blsp_id, qup_id, 400000, 19200000);
+	dev = qup_blsp_i2c_init(blsp_id, qup_id, 400000, 24000000);
 	if(!dev) {
 		dprintf(INFO, "qup_blsp_i2c_init() failed\n");
 		return;
 	}
-	i2c_qup_initialized = 1;
+	i2c_qup_initialized = qup_id;
 }
 
 void target_init(void)
@@ -570,15 +574,23 @@ usage:
 	if (!strcmp(argv[1].str, "probe")) {
 		unsigned int j;
 		uint8_t val;
+		uint8_t qup_id = QUP_ID_5;
 
-		if (!i2c_qup_initialized)
-			i2c_ipq6018_init(BLSP_ID_1, QUP_ID_1);
+		if (argc > 1) {
+			if (argv[2].u <= QUP_ID_5)
+				qup_id = argv[2].u;
+			else
+				printf("QUP id allowed are %d to %d using default %d\n",
+							QUP_ID_0, QUP_ID_5, qup_id);
+		}
+
+		if (i2c_qup_initialized != qup_id)
+			i2c_ipq6018_init(BLSP_ID_1, qup_id);
 
 		for (j = 0; j < 128; j++) {
 			if (i2c_read_reg(j, 0, &val, 1) == 0)
-				printf(" %02X", j);
+				dprintf(INFO, "I2C slave addr: 0x%x CONNECTED !!!!\n", j);
 		}
-		dprintf(INFO, "\n");
 	} else if (!strcmp(argv[1].str, "read")) {
 		unsigned *ptr = (unsigned *)argv[2].u;
 		uint8_t i2c_address = argv[3].u;
