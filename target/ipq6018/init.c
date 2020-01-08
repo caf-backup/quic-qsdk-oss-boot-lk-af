@@ -384,33 +384,50 @@ void target_usb_phy_init(void)
 	/* Config user control register */
 	writel(0x0c80c010, USB30_1_GUCTL);
 
-	/* Enable USB2 PHY Power down */
-	setbits_le32(phy_base+0xB4, 0x1);
+	/* Enable QUSB2PHY Power down */
+	setbits_le32(phy_base + 0xB4, 0x1);
 
 	/* PHY Config Sequence */
-	setbits_le32(phy_base+0x80, 0xF8);
-	setbits_le32(phy_base+0x84, 0x83);
-	setbits_le32(phy_base+0x88, 0x83);
-	setbits_le32(phy_base+0x8C, 0xC0);
-	setbits_le32(phy_base+0x9C, 0x14);
-	setbits_le32(phy_base+0x08, 0x30);
-	setbits_le32(phy_base+0x0C, 0x79);
-	setbits_le32(phy_base+0x10, 0x21);
-	setbits_le32(phy_base+0x90, 0x00);
-	setbits_le32(phy_base+0x18, 0x00);
-	setbits_le32(phy_base+0x1C, 0x9F);
-	setbits_le32(phy_base+0x04, 0x80);
+	/* QUSB2PHY_PLL:PLL Feedback Divider Value */
+	writel(0x14, phy_base);
+	/* QUSB2PHY_PORT_TUNE1: USB Product Application Tuning Register A */
+	writel(0xF8, phy_base + 0x80);
+	/* QUSB2PHY_PORT_TUNE2: USB Product Application Tuning Register B */
+	writel(0xB3, phy_base + 0x84);
+	/* QUSB2PHY_PORT_TUNE3: USB Product Application Tuning Register C */
+	writel(0x83, phy_base + 0x88);
+	/* QUSB2PHY_PORT_TUNE4: USB Product Application Tuning Register D */
+	writel(0xC0, phy_base + 0x8C);
+	/* QUSB2PHY_PORT_TEST2 */
+	writel(0x14, phy_base + 0x9C);
+	/* QUSB2PHY_PLL_TUNE: PLL Test Configuration */
+	writel(0x30, phy_base + 0x08);
+	/* QUSB2PHY_PLL_USER_CTL1: PLL Control Configuration */
+	writel(0x79, phy_base + 0x0C);
+	/* QUSB2PHY_PLL_USER_CTL2: PLL Control Configuration */
+	writel(0x21, phy_base + 0x10);
+	/* QUSB2PHY_PORT_TUNE5 */
+	writel(0x00, phy_base + 0x90);
+	/* QUSB2PHY_PLL_PWR_CTL: PLL Manual SW Programming
+	 * and Biasing Power Options */
+	writel(0x00, phy_base + 0x18);
+	/* QUSB2PHY_PLL_AUTOPGM_CTL1: Auto vs. Manual PLL/Power-mode
+	 * programming State Machine Control Options */
+	writel(0x9F, phy_base + 0x1C);
+	/* QUSB2PHY_PLL_TEST: PLL Test Configuration-Disable diff ended clock */
+	writel(0x80, phy_base + 0x04);
 
-	/* Disable USB2 PHY Power down */
-	clrbits_le32(phy_base+0xB4, 0x1);
+	/* Disable QUSB2PHY Power down */
+	clrbits_le32(phy_base + 0xB4, 0x1);
 
 	mdelay(10);
 
-	setbits_le32(0x00079004, 0x80);
+	/* QUSB2PHY_PLL_TEST: PLL Test Configuration-Disable diff ended clock */
+	writel(0x80, phy_base + 0x04);
 	mdelay(10);
 
 	/* Get QUSB2PHY_PLL_STATUS */
-	pll_status = readl(0x00079038) & (1 << 5);
+	pll_status = readl(phy_base + 0x38) & (1 << 5);
 	if (!pll_status)
 		dprintf(INFO, "QUSB PHY PLL LOCK failed 0x%08x\n", readl(0x00079038));
 
