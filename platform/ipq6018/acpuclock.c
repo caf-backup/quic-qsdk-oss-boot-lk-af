@@ -119,33 +119,50 @@ void hsusb_clock_init(void)
 /* enables usb30 interface and master clocks */
 void clock_usb30_init(void)
 {
-	/* USB0 clock Init */
-	writel(0x222000, GCC_USB0_GDSCR);
-	writel(0, GCC_SYS_NOC_USB0_AXI_CBCR);
-	writel(0, GCC_SNOC_BUS_TIMEOUT2_AHB_CBCR);
+	int cfg;
 
-	udelay(1);
+	cfg = readl(GCC_USB0_GDSCR) | SW_OVERRIDE_ENABLE;
+	cfg &= ~(SW_COLLAPSE_ENABLE);
+	writel(cfg, GCC_USB0_GDSCR);
 
-	writel(0x10b, GCC_USB0_MASTER_CFG_RCGR);
-	writel(0x1, GCC_USB0_MASTER_CMD_RCGR);
-	writel(0xcff1, GCC_USB0_MASTER_CBCR);
+	/* Configure usb0_master_clk_src */
+	cfg = (GCC_USB0_MASTER_CFG_RCGR_SRC_SEL |
+			GCC_USB0_MASTER_CFG_RCGR_SRC_DIV);
+	writel(cfg, GCC_USB0_MASTER_CFG_RCGR);
+	writel(CMD_UPDATE, GCC_USB0_MASTER_CMD_RCGR);
+	mdelay(100);
+	writel(ROOT_EN, GCC_USB0_MASTER_CMD_RCGR);
 
-	writel(1, GCC_SYS_NOC_USB0_AXI_CBCR);
-	writel(1, GCC_SNOC_BUS_TIMEOUT2_AHB_CBCR);
+	/* Configure usb0_aux_clk_src */
+	cfg = (GCC_USB0_AUX_CFG_SRC_SEL |
+			GCC_USB0_AUX_CFG_SRC_DIV);
+	writel(cfg, GCC_USB0_AUX_CFG_RCGR);
+	writel(AUX_M, GCC_USB0_AUX_M);
+	writel(AUX_N, GCC_USB0_AUX_N);
+	writel(AUX_D, GCC_USB0_AUX_D);
+	writel(CMD_UPDATE, GCC_USB0_AUX_CMD_RCGR);
+	mdelay(100);
+	writel(ROOT_EN, GCC_USB0_AUX_CMD_RCGR);
 
-	writel(1, GCC_USB0_SLEEP_CBCR);
-	writel(0x8001, GCC_USB0_PHY_CFG_AHB_CBCR);
-	writel(1, GCC_USB0_AUX_CBCR);
+	/* Configure CBCRs */
+	writel(CLK_DISABLE, GCC_SYS_NOC_USB0_AXI_CBCR);
+	writel(CLK_DISABLE, GCC_SNOC_BUS_TIMEOUT2_AHB_CBCR);
+	writel(CLK_ENABLE, GCC_SYS_NOC_USB0_AXI_CBCR);
+	writel((readl(GCC_USB0_MASTER_CBCR) | CLK_ENABLE),
+			GCC_USB0_MASTER_CBCR);
+	writel(CLK_ENABLE, GCC_SNOC_BUS_TIMEOUT2_AHB_CBCR);
+	writel(CLK_ENABLE, GCC_USB0_SLEEP_CBCR);
+	writel((CLK_ENABLE | NOC_HANDSHAKE_FSM_EN),
+			GCC_USB0_PHY_CFG_AHB_CBCR);
+	writel(CLK_ENABLE, GCC_USB0_AUX_CBCR);
 
-	mdelay(10);
-
-	// Disable USB Boot Clock
+	/* Disable USB Boot Clock */
 	clrbits_le32(GCC_USB_0_BOOT_CLOCK_CTL, 0x1);
 
-	// Disable QUSB2PHY_REFCLK to allow QUSB PHY PLL to lock properly
+	/* Disable QUSB2PHY_REFCLK to allow QUSB PHY PLL to lock properly */
 	clrbits_le32(GCC_QUSB_REF_CLK_EN, 0x0);
 
-	// GCC Reset USB0
+	/* GCC Reset USB0 */
 	setbits_le32(GCC_USB0_BCR, 0x1);
 	mdelay(10);
 	clrbits_le32(GCC_USB0_BCR, 0x1);
