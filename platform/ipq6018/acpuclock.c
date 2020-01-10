@@ -119,33 +119,50 @@ void hsusb_clock_init(void)
 /* enables usb30 interface and master clocks */
 void clock_usb30_init(void)
 {
-	/* USB0 clock Init */
-	writel(0x222000, GCC_USB0_GDSCR);
-	writel(0, GCC_SYS_NOC_USB0_AXI_CBCR);
-	writel(0, GCC_SNOC_BUS_TIMEOUT2_AHB_CBCR);
+	int cfg;
 
-	udelay(1);
+	cfg = readl(GCC_USB0_GDSCR) | SW_OVERRIDE_ENABLE;
+	cfg &= ~(SW_COLLAPSE_ENABLE);
+	writel(cfg, GCC_USB0_GDSCR);
 
-	writel(0x10b, GCC_USB0_MASTER_CFG_RCGR);
-	writel(0x1, GCC_USB0_MASTER_CMD_RCGR);
-	writel(0xcff1, GCC_USB0_MASTER_CBCR);
+	/* Configure usb0_master_clk_src */
+	cfg = (GCC_USB0_MASTER_CFG_RCGR_SRC_SEL |
+			GCC_USB0_MASTER_CFG_RCGR_SRC_DIV);
+	writel(cfg, GCC_USB0_MASTER_CFG_RCGR);
+	writel(CMD_UPDATE, GCC_USB0_MASTER_CMD_RCGR);
+	mdelay(100);
+	writel(ROOT_EN, GCC_USB0_MASTER_CMD_RCGR);
 
-	writel(1, GCC_SYS_NOC_USB0_AXI_CBCR);
-	writel(1, GCC_SNOC_BUS_TIMEOUT2_AHB_CBCR);
+	/* Configure usb0_aux_clk_src */
+	cfg = (GCC_USB0_AUX_CFG_SRC_SEL |
+			GCC_USB0_AUX_CFG_SRC_DIV);
+	writel(cfg, GCC_USB0_AUX_CFG_RCGR);
+	writel(AUX_M, GCC_USB0_AUX_M);
+	writel(AUX_N, GCC_USB0_AUX_N);
+	writel(AUX_D, GCC_USB0_AUX_D);
+	writel(CMD_UPDATE, GCC_USB0_AUX_CMD_RCGR);
+	mdelay(100);
+	writel(ROOT_EN, GCC_USB0_AUX_CMD_RCGR);
 
-	writel(1, GCC_USB0_SLEEP_CBCR);
-	writel(0x8001, GCC_USB0_PHY_CFG_AHB_CBCR);
-	writel(1, GCC_USB0_AUX_CBCR);
+	/* Configure CBCRs */
+	writel(CLK_DISABLE, GCC_SYS_NOC_USB0_AXI_CBCR);
+	writel(CLK_DISABLE, GCC_SNOC_BUS_TIMEOUT2_AHB_CBCR);
+	writel(CLK_ENABLE, GCC_SYS_NOC_USB0_AXI_CBCR);
+	writel((readl(GCC_USB0_MASTER_CBCR) | CLK_ENABLE),
+			GCC_USB0_MASTER_CBCR);
+	writel(CLK_ENABLE, GCC_SNOC_BUS_TIMEOUT2_AHB_CBCR);
+	writel(CLK_ENABLE, GCC_USB0_SLEEP_CBCR);
+	writel((CLK_ENABLE | NOC_HANDSHAKE_FSM_EN),
+			GCC_USB0_PHY_CFG_AHB_CBCR);
+	writel(CLK_ENABLE, GCC_USB0_AUX_CBCR);
 
-	mdelay(10);
-
-	// Disable USB Boot Clock
+	/* Disable USB Boot Clock */
 	clrbits_le32(GCC_USB_0_BOOT_CLOCK_CTL, 0x1);
 
-	// Disable QUSB2PHY_REFCLK to allow QUSB PHY PLL to lock properly
+	/* Disable QUSB2PHY_REFCLK to allow QUSB PHY PLL to lock properly */
 	clrbits_le32(GCC_QUSB_REF_CLK_EN, 0x0);
 
-	// GCC Reset USB0
+	/* GCC Reset USB0 */
 	setbits_le32(GCC_USB0_BCR, 0x1);
 	mdelay(10);
 	clrbits_le32(GCC_USB0_BCR, 0x1);
@@ -170,69 +187,39 @@ void clock_config_i2c(uint8_t id, uint32_t freq)
 	clk_get_set_enable(gsbi_p_clk_id, 0, 1);
 }
 
-/* Configure MMC clock */
-void clock_config_mmc(uint32_t interface, uint32_t freq)
+void clock_disable_mmc()
 {
-	/* Enable root clock generator */
-	writel(readl(GCC_SDCC1_APPS_CBCR)|0x1, GCC_SDCC1_APPS_CBCR);
-	/* Add 10us delay for CLK_OFF to get cleared */
-	udelay(10);
-
-	switch(freq)
-	{
-	case MMC_CLK_400KHZ:
-		writel(0x2017, GCC_SDCC1_APPS_CFG_RCGR);
-		/* Delay for clock operation complete */
-		udelay(10);
-		writel(0x1, GCC_SDCC1_APPS_M);
-		writel(0xFC, GCC_SDCC1_APPS_N);
-		writel(0xFD, GCC_SDCC1_APPS_D);
-		udelay(10);
-		break;
-	case MMC_CLK_48MHZ:
-	case MMC_CLK_50MHZ: /* Max supported is 48MHZ */
-		writel(0x40F, GCC_SDCC1_APPS_CFG_RCGR);
-		/* Delay for clock operation complete */
-		udelay(10);
-		writel(0x1, GCC_SDCC1_APPS_M);
-		writel(0xFC, GCC_SDCC1_APPS_N);
-		writel(0xFD, GCC_SDCC1_APPS_D);
-		/* Delay for clock operation complete */
-		udelay(10);
-		break;
-	case MMC_CLK_200MHZ:
-		writel(0x20B, GCC_SDCC1_APPS_CFG_RCGR);
-		/* Delay for clock operation complete */
-		udelay(10);
-		writel(0x1, GCC_SDCC1_APPS_M);
-		writel(0xFC, GCC_SDCC1_APPS_N);
-		writel(0xFD, GCC_SDCC1_APPS_D);
-		/* Delay for clock operation complete */
-		udelay(10);
-		break;
-
-	default:
-		ASSERT(0);
-		return;
-
-	};
-
-	/* Update APPS_CMD_RCGR to reflect source selection */
-	writel(readl(GCC_SDCC1_APPS_CMD_RCGR)|0x1, GCC_SDCC1_APPS_CMD_RCGR);
-	/* Add 10us delay for clock update to complete */
-	udelay(10);
-
+	writel(0, GCC_SDCC1_MISC);
 }
 
 /* Intialize MMC clock */
 void clock_init_mmc(uint32_t id)
 {
-	clock_config_mmc(id, MMC_CLK_400KHZ);
-}
+	int cfg;
 
-void clock_disable_mmc()
-{
-	writel(0, GCC_SDCC1_MISC);
+	clock_disable_mmc();
+
+	/* Reset clock */
+	writel(0x1, GCC_SDCC1_BCR);
+	udelay(10);
+	writel(0x0, GCC_SDCC1_BCR);
+	udelay(10);
+
+	/* Configure sdcc1_apps_clk_src */
+	cfg = (GCC_SDCC1_APPS_CFG_RCGR_SRC_SEL
+			| GCC_SDCC1_APPS_CFG_RCGR_SRC_DIV);
+	writel(cfg, GCC_SDCC1_APPS_CFG_RCGR);
+	writel(SDCC1_M_VAL, GCC_SDCC1_APPS_M);
+	writel(SDCC1_N_VAL, GCC_SDCC1_APPS_N);
+	writel(SDCC1_D_VAL, GCC_SDCC1_APPS_D);
+	writel(CMD_UPDATE, GCC_SDCC1_APPS_CMD_RCGR);
+	mdelay(100);
+	writel(ROOT_EN, GCC_SDCC1_APPS_CMD_RCGR);
+
+	/* Configure CBCRs */
+	writel(readl(GCC_SDCC1_APPS_CBCR) | CLK_ENABLE, GCC_SDCC1_APPS_CBCR);
+	udelay(10);
+	writel(readl(GCC_SDCC1_AHB_CBCR) | CLK_ENABLE, GCC_SDCC1_AHB_CBCR);
 }
 
 /* Configure crypto engine clock */

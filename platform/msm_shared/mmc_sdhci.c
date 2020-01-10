@@ -853,7 +853,9 @@ static uint32_t mmc_set_hs200_mode(struct sdhci_host *host,
 		* clock frequency
 		*/
 		sdhci_msm_set_mci_clk(host);
+#ifndef SDCC_MCI_REMOVED
 		clock_config_mmc(host->msm_host->slot, SDHCI_CLK_400MHZ);
+#endif
 	}
 	else
 	{
@@ -1052,7 +1054,9 @@ static uint8_t mmc_host_init(struct mmc_device *dev)
 	/* Initialize any clocks needed for SDC controller */
 	clock_init_mmc(cfg->slot);
 
+#ifndef SDCC_MCI_REMOVED
 	clock_config_mmc(cfg->slot, cfg->max_clk_rate);
+#endif
 
 	/*
 	 * MSM specific sdhc init

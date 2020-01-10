@@ -386,9 +386,6 @@ void target_usb_phy_init(void)
 	uint32_t pll_status;
 	uint32_t phy_base = USB30_PHY_1_QUSB2PHY_BASE;
 
-	/* Config user control register */
-	writel(0x0c80c010, USB30_1_GUCTL);
-
 	/* Enable QUSB2PHY Power down */
 	setbits_le32(phy_base + 0xB4, 0x1);
 
