@@ -42,10 +42,20 @@
  * DLL: Delay Line
  * CDC: Calibrated Delay Circuit
  */
-#define SDCC_DLL_CONFIG_REG                      0x100
-#define SDCC_VENDOR_SPECIFIC_FUNC                0x10C
-#define SDCC_REG_DLL_STATUS                      0x108
-#define SDCC_CDC_DDR200_CFG                      0x184
+#ifdef SDCC_MCI_REMOVED
+#define SDCC_DLL_CONFIG_REG			0x200
+#define SDCC_VENDOR_SPECIFIC_FUNC		0x20C
+#define SDCC_REG_DLL_STATUS			0x208
+#define SDCC_CDC_DDR200_CFG			0x224
+#define SDCC_DLL_CONFIG2_REG			0x254
+#else
+#define SDCC_DLL_CONFIG_REG			0x100
+#define SDCC_VENDOR_SPECIFIC_FUNC		0x10C
+#define SDCC_REG_DLL_STATUS			0x108
+#define SDCC_CDC_DDR200_CFG			0x184
+#define SDCC_DLL_CONFIG2_REG			0x1B4
+#endif
+
 #define SDCC_VENDOR_SPEC_CSR_CDC_CFG             0x178
 #define SDCC_CSR_CDC_CTRL_CFG0                   0x130
 #define SDCC_CSR_CDC_CTRL_CFG1                   0x134
@@ -57,7 +67,6 @@
 #define SDCC_CDC_OFFSET_CFG                      0x14C
 #define SDCC_CDC_SLAVE_DDA_CFG                   0x160
 #define SDCC_CSR_CDC_STATUS0                     0x164
-#define SDCC_DLL_CONFIG2_REG			 0x1b4
 #define CORE_DLL_CLK_DISABLE			 BIT(21)
 /* DLL & CDC helper macros */
 #define SDCC_DLL_PWR_SAVE_EN                      BIT(1)
@@ -99,7 +108,12 @@
 #define MAX_PHASES                                16
 
 /* SDCC version macros */
+#ifdef SDCC_MCI_REMOVED
+#define MCI_VERSION                               0x318
+#else
 #define MCI_VERSION                               0x50
+#endif
+
 #define CORE_VERSION_MAJOR_MASK                   0xF0000000
 #define CORE_VERSION_MAJOR_SHIFT                  0x1C
 
