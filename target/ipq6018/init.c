@@ -82,6 +82,42 @@ extern void dmb(void);
 static struct qup_i2c_dev *dev = NULL;
 static int i2c_qup_initialized = -1;
 
+#define TZ_INFO_GET_DIAG_ID	0x2
+#define SCM_SVC_INFO		0x6
+#define TZBSP_DIAG_BUF_LEN	0x3000
+
+/**
+ * struct tzbsp_log_pos_t - log position structure
+ * @wrap: Ring buffer wrap-around ctr
+ * @offset: Ring buffer current position
+ */
+struct tzbsp_log_pos_t {
+	uint16_t wrap;
+	uint16_t offset;
+};
+
+/**
+ * struct tzbsp_diag_log_t - log structure
+ * @log_pos: Ring buffer position mgmt
+ * @log_buf: Open ended array to the end of the 4K IMEM buffer
+ */
+struct tzbsp_diag_log_t {
+	struct tzbsp_log_pos_t log_pos;
+	uint8_t log_buf[1];
+};
+
+/**
+ * struct ipq6018_tzbsp_diag_t_v8 -  tz diag log structure
+ * @unused: Unused variable is to support the corresponding structure in
+ *		trustzone and size is varying based on AARCH64 TZ
+ */
+struct ipq6018_tzbsp_diag_t_v8 {
+	uint32_t unused[7];
+	uint32_t ring_off;
+	uint32_t unused1[802];
+	struct tzbsp_diag_log_t log;
+};
+
 /* Setting this variable to different values defines the
  * behavior of CE engine:
  * platform_ce_type = CRYPTO_ENGINE_TYPE_NONE : No CE engine
@@ -107,6 +143,77 @@ static uint32_t mmc_sdhci_base[] =
 
 static uint32_t  mmc_sdc_pwrctl_irq[] =
 	{ SDCC1_PWRCTL_IRQ, SDCC2_PWRCTL_IRQ };
+
+
+void display_tzlog(void)
+{
+	char *tz_buf;
+	char *copy_buf, *tmp_buf;
+	uint32_t buf_len, copy_len = 0;
+	uint16_t wrap, ring, offset;
+	struct tzbsp_diag_log_t *log;
+	struct ipq6018_tzbsp_diag_t_v8 *ipq6018_diag_buf;
+	int ret;
+
+	buf_len = TZBSP_DIAG_BUF_LEN;
+	tz_buf = malloc(buf_len);
+	if (!tz_buf) {
+		dprintf(CRITICAL, "malloc failed for tz_buf\n");
+		goto err_tzbuf;
+	}
+
+	copy_buf = malloc(buf_len);
+	if (!copy_buf) {
+		dprintf(CRITICAL, "malloc failed for copy_buf\n");
+		goto err_copybuf;
+	}
+	tmp_buf = copy_buf;
+	memset((void *)copy_buf, 0, (size_t)buf_len);
+	memset((void *)tz_buf, 0, (size_t)buf_len);
+
+
+	/* SCM call to TZ to get the tz log */
+	ret = qca_scm_tz_log(SCM_SVC_INFO, TZ_INFO_GET_DIAG_ID,
+					tz_buf, buf_len);
+	if (ret != 0) {
+		dprintf(CRITICAL, "Error in getting tz log\n");
+		goto err_scm;
+	}
+
+	ipq6018_diag_buf = (struct ipq6018_tzbsp_diag_t_v8 *)tz_buf;
+	ring = ipq6018_diag_buf->ring_off;
+	log = &ipq6018_diag_buf->log;
+
+	offset = log->log_pos.offset;
+	wrap = log->log_pos.wrap;
+
+	if (wrap != 0) {
+		memcpy(copy_buf, (tz_buf + offset + ring),
+			(buf_len - offset - ring));
+		memcpy(copy_buf + (buf_len - offset - ring),
+				(tz_buf + ring), offset);
+		copy_len = (buf_len - offset - ring) + offset;
+	}
+	else {
+		memcpy(copy_buf, (tz_buf + ring), offset);
+		copy_len = offset;
+	}
+
+	/* display buffer to console*/
+	dprintf(INFO, "TZ LOG:\n\n");
+	for (uint32_t i = 0; i < copy_len; i++) {
+		printf("%c", (char)*copy_buf);
+		copy_buf += 1;
+	}
+	printf("\n");
+
+err_scm:
+	free(tmp_buf);
+err_copybuf:
+	free(tz_buf);
+err_tzbuf:
+	return;
+}
 
 int target_is_emmc_boot(void)
 {
