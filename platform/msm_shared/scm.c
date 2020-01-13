@@ -685,6 +685,29 @@ int qca_scm_set_resettype(uint32_t reset_type)
 	return ret;
 }
 
+int qca_scm_fuseipq(uint32_t svc_id, uint32_t cmd_id, void *buf, size_t len)
+{
+	int ret = 0;
+	uint32_t *status;
+	if (is_scm_armv8())
+	{
+		struct qca_scm_desc desc = {0};
+
+		desc.arginfo = QCA_SCM_ARGS(1, SCM_READ_OP);
+		desc.args[0] = *((unsigned int *)buf);
+
+		ret = scm_call_64(svc_id, cmd_id, &desc);
+
+		status = (uint32_t *)(*(((uint32_t *)buf) + 1));
+		*status = desc.ret[0];
+	}
+	else
+	{
+		ret = scm_call(svc_id, cmd_id, buf, len, NULL, 0);
+	}
+	return ret;
+}
+
 int qca_scm_tz_log(uint32_t svc_id, uint32_t cmd_id,
 			void *ker_buf, uint32_t buf_len)
 {
