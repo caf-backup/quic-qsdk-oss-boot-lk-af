@@ -48,7 +48,7 @@
 #define USB1_IRQ                (GIC_SPI_START + 142)
 #define SDCC1_PWRCTL_IRQ	(GIC_SPI_START + 138)
 #define SDCC2_PWRCTL_IRQ	(GIC_SPI_START + 221)
-
+#define TZ_ERR_IRQ		(GIC_SPI_START + 244)
 
 #define BLSP_QUP_IRQ(blsp_id, qup_id)          ((qup_id < 4) ? \
                                                ((GIC_SPI_START + 95) + qup_id):\
