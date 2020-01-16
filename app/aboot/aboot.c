@@ -345,6 +345,112 @@ extern int emmc_recovery_init(void);
 extern int fastboot_trigger(void);
 #endif
 
+#ifdef CONFIG_IPQ_ELF_AUTH
+#define NO_OF_PROGRAM_HDRS	3
+#define ELF_HDR_PLUS_PHDR_SIZE	sizeof(Elf32_Ehdr) + \
+		(NO_OF_PROGRAM_HDRS * sizeof(Elf32_Phdr))
+
+#define EI_NIDENT	16		/* Size of e_ident[] */
+#define ET_EXEC		2		/* executable file */
+#define PT_LOAD		1		/* loadable segment */
+
+typedef struct {
+	unsigned int img_offset;
+	unsigned int img_load_addr;
+	unsigned int img_size;
+} image_info;
+
+typedef uint32_t	Elf32_Addr;	/* Unsigned program address */
+typedef uint32_t	Elf32_Off;	/* Unsigned file offset */
+typedef int32_t		Elf32_Sword;	/* Signed large integer */
+typedef uint32_t	Elf32_Word;	/* Unsigned large integer */
+typedef uint16_t	Elf32_Half;	/* Unsigned medium integer */
+
+/* e_ident[] identification indexes */
+#define EI_MAG0		0		/* file ID */
+#define EI_MAG1		1		/* file ID */
+#define EI_MAG2		2		/* file ID */
+#define EI_MAG3		3		/* file ID */
+
+/* e_ident[] magic number */
+#define	ELFMAG0		0x7f		/* e_ident[EI_MAG0] */
+#define	ELFMAG1		'E'		/* e_ident[EI_MAG1] */
+#define	ELFMAG2		'L'		/* e_ident[EI_MAG2] */
+#define	ELFMAG3		'F'		/* e_ident[EI_MAG3] */
+
+/* e_ident */
+#define IS_ELF(ehdr) ((ehdr).e_ident[EI_MAG0] == ELFMAG0 && \
+		      (ehdr).e_ident[EI_MAG1] == ELFMAG1 && \
+		      (ehdr).e_ident[EI_MAG2] == ELFMAG2 && \
+		      (ehdr).e_ident[EI_MAG3] == ELFMAG3)
+
+/* ELF Header */
+typedef struct elfhdr{
+	unsigned char	e_ident[EI_NIDENT]; /* ELF Identification */
+	Elf32_Half	e_type;		/* object file type */
+	Elf32_Half	e_machine;	/* machine */
+	Elf32_Word	e_version;	/* object file version */
+	Elf32_Addr	e_entry;	/* virtual entry point */
+	Elf32_Off	e_phoff;	/* program header table offset */
+	Elf32_Off	e_shoff;	/* section header table offset */
+	Elf32_Word	e_flags;	/* processor-specific flags */
+	Elf32_Half	e_ehsize;	/* ELF header size */
+	Elf32_Half	e_phentsize;	/* program header entry size */
+	Elf32_Half	e_phnum;	/* number of program header entries */
+	Elf32_Half	e_shentsize;	/* section header entry size */
+	Elf32_Half	e_shnum;	/* number of section header entries */
+	Elf32_Half	e_shstrndx;	/* section header table's "section
+					   header string table" entry offset */
+} Elf32_Ehdr;
+
+/* Program Header */
+typedef struct {
+	Elf32_Word	p_type;		/* segment type */
+	Elf32_Off	p_offset;	/* segment offset */
+	Elf32_Addr	p_vaddr;	/* virtual address of segment */
+	Elf32_Addr	p_paddr;	/* physical address - ignored? */
+	Elf32_Word	p_filesz;	/* number of bytes in file for seg. */
+	Elf32_Word	p_memsz;	/* number of bytes in mem. for seg. */
+	Elf32_Word	p_flags;	/* flags */
+	Elf32_Word	p_align;	/* memory alignment */
+} Elf32_Phdr;
+
+static int parse_elf_image_phdr(image_info *img_info, void * addr)
+{
+	Elf32_Ehdr *ehdr; /* Elf header structure pointer */
+	Elf32_Phdr *phdr; /* Program header structure pointer */
+	int i;
+
+	ehdr = (Elf32_Ehdr *)addr;
+	phdr = (Elf32_Phdr *)(addr + ehdr->e_phoff);
+
+	if (!IS_ELF(*ehdr)) {
+		printf("It is not a elf image \n");
+		return -1;
+	}
+
+	if (ehdr->e_type != ET_EXEC) {
+		printf("Not a valid elf image\n");
+		return -1;
+	}
+
+	/* Load each program header */
+	for (i = 0; i < NO_OF_PROGRAM_HDRS; ++i) {
+		printf("Parsing phdr load addr 0x%x offset 0x%x size 0x%x type 0x%x\n",
+		      phdr->p_paddr, phdr->p_offset, phdr->p_filesz, phdr->p_type);
+		if(phdr->p_type == PT_LOAD) {
+			img_info->img_offset = phdr->p_offset;
+			img_info->img_load_addr = phdr->p_paddr;
+			img_info->img_size =  phdr->p_filesz;
+			return 0;
+		}
+		++phdr;
+	}
+
+	return -1;
+}
+#endif
+
 static void ptentry_to_tag(unsigned **ptr, struct ptentry *ptn)
 {
 	struct atag_ptbl_entry atag_ptn;
@@ -897,11 +1003,15 @@ int boot_linux_from_mmc(void)
 	unsigned dtb_size = 0;
 #endif
 
-	mbn_header_t mbn_header;
 	char status = 0;
 	int ret;
 	unsigned int kernel_size = 0;
 	unsigned int active_part = 0;
+#ifdef CONFIG_IPQ_ELF_AUTH
+	image_info img_info;
+#else
+	mbn_header_t mbn_header;
+#endif
 
 	uhdr = (struct boot_img_hdr *)EMMC_BOOT_IMG_HEADER_ADDR;
 	if (!memcmp(uhdr->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE)) {
@@ -969,7 +1079,13 @@ int boot_linux_from_mmc(void)
 
 		dprintf(INFO, "Secure image authentication successful\n");
 
+#ifdef CONFIG_IPQ_ELF_AUTH
+		if (parse_elf_image_phdr(&img_info, (void*)image_addr) != 0)
+			return -1;
+		offset = img_info.img_offset;
+#else
 		offset = sizeof(mbn_header);
+#endif
 
 		memmove((void*) image_addr, (char *)(image_addr + offset), kernel_size - offset);
 
