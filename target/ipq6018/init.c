@@ -550,6 +550,21 @@ static void target_crypto_init_params()
 #define uarg(x)		(argv[x].u)
 #define ullarg(x)	((unsigned long long)argv[x].u)
 
+static int cmd_fuseipq(int argc, const cmd_args *argv)
+{
+	uint32_t address, ret = -1;
+
+	if (argc != 2) {
+		printf("Invalid number of arguments\n");
+		printf("Command format: fuseipq <address>\n");
+		return 1;
+	}
+
+	address = uarg(1);
+	ret = fuseipq(address);
+	return ret;
+}
+
 static int cmd_hash_find(int argc, const cmd_args *argv)
 {
 	unsigned msg_len, alg, i;
@@ -658,5 +673,6 @@ usage:
 
 STATIC_COMMAND_START
 	{ "i2c", "i2c probe/read/write commands", &cmd_i2c },
-        { "hash", "Find Hash", &cmd_hash_find },
+	{ "hash", "Find Hash", &cmd_hash_find },
+	{ "fuseipq", "fuse QFPROM registers from memory\n", &cmd_fuseipq },
 STATIC_COMMAND_END(hash);

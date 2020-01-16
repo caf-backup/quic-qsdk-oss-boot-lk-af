@@ -245,5 +245,6 @@ int qca_scm_secure_authenticate(void *cmd_buf, size_t cmd_len);
 int is_scm_sec_auth_available(uint32_t svc_id, uint32_t cmd_id);
 int qca_scm_set_resettype(uint32_t reset_type);
 int qca_scm_tz_log(uint32_t svc_id, uint32_t cmd_id, void *ker_buf, uint32_t buf_len);
+int qca_scm_fuseipq(uint32_t svc_id, uint32_t cmd_id, void *buf, size_t len);
 
 #endif
