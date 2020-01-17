@@ -156,6 +156,8 @@ void sdhci_msm_init(struct sdhci_host *host, struct sdhci_msm_data *config)
 	/* Enable sdhc mode */
 	RMWREG32((config->pwrctl_base + SDCC_MCI_HC_MODE), SDHCI_HC_START_BIT, SDHCI_HC_WIDTH, SDHCI_HC_MODE_EN);
 #else
+	uint8_t val;
+
 	/* Vendor specific register is not reset during the soft reset of the
 	 * controller. If the previous stage bootloaders leave the value to unknown
 	 * state there could be failures while initilizing the card. Set the vendor
@@ -163,6 +165,12 @@ void sdhci_msm_init(struct sdhci_host *host, struct sdhci_msm_data *config)
 	 * reset state.
 	 */
 	REG_WRITE32(host, 0xA1C, SDCC_VENDOR_SPECIFIC_FUNC);
+
+	/* As per SDCC HPG, the SD bus power should be turned off,
+	 * for doing complete clean SW reset for all while power is on.
+	 */
+	val = REG_READ8(host, SDHCI_HOST_CTRL1_REG);
+	REG_WRITE8(host,(val & (~SDHCI_POWER_ON)), SDHCI_PWR_CTRL_REG);
 #endif
 	/*
 	 * Reset the controller
