@@ -2654,6 +2654,8 @@ int update_device_tree(const void * fdt, char *cmdline,
 
 	fdt_fixup_version((void*)fdt);
 
+	fdt_fixup_atf((void*)fdt);
+
 	/* Get Value of address-cells and size-cells*/
 	addr_cells = fdt_getprop((void *)fdt, offset, "#address-cells", &prop_len);
 	if(addr_cells && prop_len == sizeof(*addr_cells))

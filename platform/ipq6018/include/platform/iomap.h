@@ -141,6 +141,10 @@
 #define GMACSEC_CORE_RESET(n)	((void *)(0x903E28 + ((n - 1) * 4)))
 #define GMAC_AHB_RESET		0x903E24
 
+
+#define ATF_FUSE	0x000A4188
+#define ATF_ENABLED	BIT(9)
+
 /*
  * GCC-SDCC Registers
  */
