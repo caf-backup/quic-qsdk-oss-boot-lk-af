@@ -165,4 +165,5 @@ board_ipq6018_params_t *get_board_param(unsigned int machid);
 void ipq_configure_gpio(gpio_func_data_t *gpio, int count);
 void target_mmc_deinit();
 void clock_disable_mmc();
+void reset_crashdump(bool);
 #endif

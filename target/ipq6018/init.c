@@ -59,10 +59,10 @@
 #include <usb30_wrapper.h>
 #include <string.h>
 
-#define APPS_DLOAD_MAGIC			0x10
 #define CLEAR_MAGIC				0x0
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID 	0x9
 #define SCM_CMD_TZ_FORCE_DLOAD_ID 		0x10
+#define CDUMP_MODE				0x1
 
 #define CE1_INSTANCE		1
 #define CE_EE			1
@@ -230,6 +230,32 @@ void i2c_ipq6018_init(uint8_t blsp_id, uint8_t qup_id)
 	i2c_qup_initialized = qup_id;
 }
 
+static void initialize_crashdump(void)
+{
+	int ret;
+	ret = qca_scm_call_write(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
+				(uint32_t *)0x193D100, APPS_DLOAD_MAGIC);
+	if (ret)
+		dprintf(CRITICAL, "Error setting crashdump magic\n");
+}
+
+void reset_crashdump(bool sdi_only)
+{
+	int ret;
+
+	if (is_scm_armv8())
+		qca_scm_sdi_v8(SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID);
+
+	if(!sdi_only) {
+		ret = qca_scm_call_write(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
+				(uint32_t *)0x193D100, CLEAR_MAGIC);
+		if (ret) {
+			dprintf(CRITICAL, "Error resetting crashdump magic\n");
+			return;
+		}
+	}
+}
+
 void target_init(void)
 {
 	unsigned platform_id = board_platform_id();
@@ -240,6 +266,7 @@ void target_init(void)
 	dprintf(INFO, "board platform id is 0x%x\n",  platform_id);
 	dprintf(INFO, "board platform verson is 0x%x\n",  board_platform_ver());
 
+	initialize_crashdump();
 	target_sdc_init();
 	if (partition_read_table(mmc_host, (struct mmc_boot_card *)mmc_card))
 	{
@@ -259,53 +286,27 @@ crypto_engine_type board_ce_type(void)
 	return platform_ce_type;
 }
 
-static void reset_crashdump(void)
-{
-	if (is_scm_armv8())
-		qca_scm_sdi_v8(SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID);
-}
-
 void reboot_device(unsigned reboot_reason)
 {
 	writel(reboot_reason, RESTART_REASON_ADDR);
 
-	reset_crashdump();
+	if (reboot_reason == CDUMP_MODE) {
+		dprintf(INFO, "CDUMP mode enabled\n");
+		reset_crashdump(1);
+	} else {
+		reset_crashdump(0);
+	}
+
 	writel(0, GCNT_PSHOLD);
 	mdelay(10000);
 
 	dprintf(CRITICAL, "Rebooting failed\n");
 }
 
-int apps_iscrashed(void)
-{
-	uint32_t dmagic = readl(0x193D100);
-
-	if (dmagic == APPS_DLOAD_MAGIC)
-		return 1;
-
-	return 0;
-}
-
 unsigned check_reboot_mode(void)
 {
-	unsigned restart_reason = 0;
-	int ret;
+	unsigned restart_reason;
 
-	/*
-	 * The kernel did not shutdown properly in the previous boot.
-	 * The SBLs would not have loaded QSEE firmware, proceeding with
-	 * the boot is not possible. Reboot the system cleanly.
-	 */
-	if(apps_iscrashed()) {
-		ret = qca_scm_call_write(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
-					 (uint32_t *)0x193D100, CLEAR_MAGIC);
-		if (ret) {
-			dprintf(CRITICAL, "Error resetting crashdump magic\n");
-			return ret;
-		}
-		dprintf(INFO, "Apps Dload Magic set. Rebooting...\n");
-		reboot_device(0);
-	}
 	/* Read reboot reason and scrub it */
 	restart_reason = readl(RESTART_REASON_ADDR);
 	writel(0x00, RESTART_REASON_ADDR);
