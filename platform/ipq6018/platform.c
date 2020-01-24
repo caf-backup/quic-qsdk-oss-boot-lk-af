@@ -38,6 +38,7 @@
 #include <board.h>
 #include <target/board.h>
 #include <qtimer.h>
+#include <platform.h>
 
 extern void platform_panel_backlight_on(void);
 extern void mipi_panel_reset(void);
@@ -81,6 +82,16 @@ mmu_section_t mmu_section_table[] = {
 	{MSM_IMEM_BASE, MSM_IMEM_BASE, 1, IMEM_MEMORY},
 };
 
+static int apps_iscrashed(void)
+{
+	uint32_t dmagic = readl(0x193D100);
+
+	if (dmagic == APPS_DLOAD_MAGIC)
+		return 1;
+
+	return 0;
+}
+
 void platform_early_init(void)
 {
 	msm_clocks_init();
@@ -92,6 +103,16 @@ void platform_early_init(void)
 void platform_init(void)
 {
 	dprintf(INFO, "%s()\n", __func__);
+	/*
+	 * The kernel did not shutdown properly in the previous boot.
+	 * The boot images(XBL & QSEE) would have executed in
+	 * the crashdump path. Reboot once for clean boot.
+	 */
+	if(apps_iscrashed()) {
+		reset_crashdump(0);
+		dprintf(INFO, "Apps Dload Magic set. Rebooting...\n");
+		reboot_device(0);
+	}
 }
 
 void platform_uninit(void)
@@ -100,7 +121,7 @@ void platform_uninit(void)
 	qtimer_uninit();
 	target_mmc_deinit();
 	clock_disable_mmc();
-
+	reset_crashdump(0);
 }
 
 /* Setup memory for this platform */
