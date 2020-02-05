@@ -541,7 +541,17 @@ int qca_scm_call_write(uint32_t svc_id,
 	int ret = 0;
 
 	struct qca_scm_desc desc = {0};
-	desc.arginfo = QCA_SCM_ARGS(2, SCM_READ_OP);
+
+	/*
+	 * In ipq807x, this SCM call is called as a Fast
+	 * SCM call which means it will get executed in
+	 * EL3 monitor mode itself without jumping to QSEE.
+	 * But, In ipq6018, We need to jump into QSEE which
+	 * will execute the SCM call, as we do not have
+	 * support for Fast SCM call in ipq6018.
+	 */
+
+	desc.arginfo = QCA_SCM_ARGS(2, SCM_VAL, SCM_VAL);
 	desc.args[0] = (uint32_t)addr;
 	desc.args[1] = val;
 	ret = scm_call_64(svc_id, cmd_id, &desc);
@@ -682,6 +692,29 @@ int qca_scm_set_resettype(uint32_t reset_type)
 	if (!ret)
 		ret = fdt32_to_cpu(out);
 
+	return ret;
+}
+
+int qca_scm_fuseipq(uint32_t svc_id, uint32_t cmd_id, void *buf, size_t len)
+{
+	int ret = 0;
+	uint32_t *status;
+	if (is_scm_armv8())
+	{
+		struct qca_scm_desc desc = {0};
+
+		desc.arginfo = QCA_SCM_ARGS(1, SCM_READ_OP);
+		desc.args[0] = *((unsigned int *)buf);
+
+		ret = scm_call_64(svc_id, cmd_id, &desc);
+
+		status = (uint32_t *)(*(((uint32_t *)buf) + 1));
+		*status = desc.ret[0];
+	}
+	else
+	{
+		ret = scm_call(svc_id, cmd_id, buf, len, NULL, 0);
+	}
 	return ret;
 }
 
