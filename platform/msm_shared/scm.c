@@ -744,6 +744,7 @@ int qca_scm_tz_log(uint32_t svc_id, uint32_t cmd_id,
 		ret = scm_call(svc_id, cmd_id, &tzlog, sizeof(struct tz_log_read),
 								NULL, 0);
 	}
+	arch_invalidate_cache_range((addr_t)log_buf, buf_len);
 
 	return ret;
 }
