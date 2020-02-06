@@ -115,6 +115,7 @@ void write_device_info_mmc(device_info *dev);
 void write_device_info_flash(device_info *dev);
 uint32_t* target_dev_tree_mem(uint32_t * num_of_entries);
 void update_mac_addrs(void *fdt);
+void update_usb_mode(void *fdt);
 void fdt_fixup_version(void *fdt);
 
 /* fastboot command function pointer */
@@ -2717,6 +2718,8 @@ int update_device_tree(const void * fdt, char *cmdline,
 	}
 
 	update_mac_addrs((void*)fdt);
+
+	update_usb_mode((void*)fdt);
 
 	if (!ramdisk || ramdisk_size == 0)
 		goto no_initrd;

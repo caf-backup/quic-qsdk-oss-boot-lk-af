@@ -180,6 +180,11 @@ void update_mac_addrs(void *fdt)
 	free(mac);
 }
 
+void update_usb_mode(void *fdt)
+{
+	return;
+}
+
 void fdt_fixup_atf(void *fdt)
 {
 	uint32_t value;
