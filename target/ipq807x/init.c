@@ -689,7 +689,7 @@ static void target_crypto_init_params()
 	 * Do not do it again as the initialization address space
 	 * is locked.
 	 */
-	ce_params.do_bam_init      = 1;
+	ce_params.do_bam_init      = 0;
 
 	crypto_init_params(&ce_params);
 }
