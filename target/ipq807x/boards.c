@@ -229,7 +229,7 @@ void update_usb_mode(void *fdt)
 		return;
 	}
 
-	appsblenv_part = memalign(BLOCK_SIZE * 2 , BLOCK_SIZE * 2);
+	appsblenv_part = memalign(BLOCK_SIZE, BLOCK_SIZE * 2);
 	if (appsblenv_part == NULL) {
 		critical("Could not allocate sufficient memory to read env variables\n");
 		return;
