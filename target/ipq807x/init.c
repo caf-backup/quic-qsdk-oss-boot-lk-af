@@ -118,7 +118,6 @@ struct tz_log_struct {
 	char *copy_buf;
 	int buf_len;
 	int copy_len;
-	mutex_t lock;
 };
 
 /* Setting this variable to different values defines the
@@ -278,7 +277,6 @@ void crashdump_init(void)
 
 int display_tzlog(void)
 {
-	mutex_t lock;
 	char *ker_buf;
 	char *tmp_buf;
 	uint32_t buf_len, copy_len = 0;
@@ -287,22 +285,20 @@ int display_tzlog(void)
 	struct ipq807x_tzbsp_diag_t_v8 *ipq807x_diag_buf;
 	int ret;
 
-	mutex_init(&lock);
-	mutex_acquire(&lock);
-
 	buf_len = TZBSP_DIAG_BUF_LEN;
 	ker_buf = malloc(buf_len);
 	if (!ker_buf) {
 		dprintf(CRITICAL, "malloc failed for ker_buf\n");
-		return NULL;
+		goto err_ker_buf;
 	}
 
 	tmp_buf = malloc(buf_len);
 	if (!tmp_buf) {
 		dprintf(CRITICAL, "malloc failed for tmp_buf\n");
-		return NULL;
+		goto err_tmp_buf;
 	}
 	memset((void *)tmp_buf, 0, (size_t)buf_len);
+	memset((void *)ker_buf, 0, (size_t)buf_len);
 
 
 	/* SCM call to TZ to get the tz log */
@@ -310,9 +306,7 @@ int display_tzlog(void)
 					ker_buf, buf_len);
 	if (ret != 0) {
 		dprintf(CRITICAL, "Error in getting tz log\n");
-		mutex_release(&lock);
-		mutex_destroy(&lock);
-		return -EIO;
+		goto err_scm;
 	}
 
 	ipq807x_diag_buf = (struct ipq807x_tzbsp_diag_t_v8 *)ker_buf;
@@ -342,9 +336,11 @@ int display_tzlog(void)
 	}
 	printf("\n");
 
-	mutex_release(&lock);
-	mutex_destroy(&lock);
-
+err_scm:
+	free(tmp_buf);
+err_tmp_buf:
+	free(ker_buf);
+err_ker_buf:
 	return 0;
 }
 
