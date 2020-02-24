@@ -52,6 +52,12 @@ reset:
 	bic		r0, r0, #(1<<2 | 1<<0)
 		/* enable alignment faults */
 	orr		r0, r0, #(1<<1)
+
+	/* Enable CP15 barrier instructions, by enabling CP15BEN bit in
+	 * SCTLR register, for ARMv7 architecture based platforms */
+#if ARM_ISA_ARMV7
+	orr		r0, r0, #(1<<5)
+#endif
         /* Write SCTLR */
 	mcr		p15, 0, r0, c1, c0, 0
 #ifdef ENABLE_TRUSTZONE
