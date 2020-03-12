@@ -180,6 +180,34 @@ void update_mac_addrs(void *fdt)
 	free(mac);
 }
 
+void update_usb_mode(void *fdt)
+{
+	return;
+}
+
+void fdt_fixup_atf(void *fdt)
+{
+	uint32_t value;
+	int offset, ret;
+
+	value = readl(ATF_FUSE);
+	if (value & ATF_ENABLED) {
+		offset = fdt_path_offset(fdt, "/soc/q6v5_wcss@CD00000");
+		ret = fdt_delprop((void *)fdt, offset, "qca,secure");
+		if (ret) {
+			dprintf(CRITICAL, "%s: Unable to delete the property\n", __func__);
+			return;
+		}
+		value = 1;
+		offset = fdt_path_offset(fdt, "/soc/qca,scm_restart_reason");
+		ret = fdt_setprop((void *)fdt, offset, "qca,coldreboot-enabled", &value, sizeof(value));
+		if (ret) {
+			dprintf(CRITICAL, "%s: Unable to set the property\n", __func__);
+			return;
+		}
+	}
+}
+
 void fdt_fixup_version(void *fdt)
 {
 	int offset, ret;

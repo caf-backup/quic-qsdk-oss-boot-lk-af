@@ -40,6 +40,7 @@
 #include <platform/timer.h>
 #include <platform/gpio.h>
 #include <platform/irqs.h>
+#include <platform/interrupts.h>
 #include <reg.h>
 #include <i2c_qup.h>
 #include <gsbi.h>
@@ -59,10 +60,10 @@
 #include <usb30_wrapper.h>
 #include <string.h>
 
-#define APPS_DLOAD_MAGIC			0x10
 #define CLEAR_MAGIC				0x0
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID 	0x9
 #define SCM_CMD_TZ_FORCE_DLOAD_ID 		0x10
+#define CDUMP_MODE				0x1
 
 #define CE1_INSTANCE		1
 #define CE_EE			1
@@ -74,12 +75,49 @@
 #define CE_ARRAY_SIZE		20
 #define MSM_CE1_BAM_BASE	0x00704000
 #define MSM_CE1_BASE		0x0073a000
+#define I2C_STATUS_ERROR_MASK 0x38000FC
 
 extern struct mmc_card *get_mmc_card();
 
 extern void dmb(void);
 static struct qup_i2c_dev *dev = NULL;
-static int i2c_qup_initialized;
+static int i2c_qup_initialized = -1;
+
+#define TZ_INFO_GET_DIAG_ID	0x2
+#define SCM_SVC_INFO		0x6
+#define TZBSP_DIAG_BUF_LEN	0x3000
+
+/**
+ * struct tzbsp_log_pos_t - log position structure
+ * @wrap: Ring buffer wrap-around ctr
+ * @offset: Ring buffer current position
+ */
+struct tzbsp_log_pos_t {
+	uint16_t wrap;
+	uint16_t offset;
+};
+
+/**
+ * struct tzbsp_diag_log_t - log structure
+ * @log_pos: Ring buffer position mgmt
+ * @log_buf: Open ended array to the end of the 4K IMEM buffer
+ */
+struct tzbsp_diag_log_t {
+	struct tzbsp_log_pos_t log_pos;
+	uint8_t log_buf[1];
+};
+
+/**
+ * struct ipq6018_tzbsp_diag_t_v8 -  tz diag log structure
+ * @unused: Unused variable is to support the corresponding structure in
+ *		trustzone and size is varying based on AARCH64 TZ
+ */
+struct ipq6018_tzbsp_diag_t_v8 {
+	uint32_t unused[7];
+	uint32_t ring_off;
+	uint32_t unused1[802];
+	struct tzbsp_diag_log_t log;
+};
 
 /* Setting this variable to different values defines the
  * behavior of CE engine:
@@ -106,6 +144,77 @@ static uint32_t mmc_sdhci_base[] =
 
 static uint32_t  mmc_sdc_pwrctl_irq[] =
 	{ SDCC1_PWRCTL_IRQ, SDCC2_PWRCTL_IRQ };
+
+
+void display_tzlog(void)
+{
+	char *tz_buf;
+	char *copy_buf, *tmp_buf;
+	uint32_t buf_len, copy_len = 0;
+	uint16_t wrap, ring, offset;
+	struct tzbsp_diag_log_t *log;
+	struct ipq6018_tzbsp_diag_t_v8 *ipq6018_diag_buf;
+	int ret;
+
+	buf_len = TZBSP_DIAG_BUF_LEN;
+	tz_buf = malloc(buf_len);
+	if (!tz_buf) {
+		dprintf(CRITICAL, "malloc failed for tz_buf\n");
+		goto err_tzbuf;
+	}
+
+	copy_buf = malloc(buf_len);
+	if (!copy_buf) {
+		dprintf(CRITICAL, "malloc failed for copy_buf\n");
+		goto err_copybuf;
+	}
+	tmp_buf = copy_buf;
+	memset((void *)copy_buf, 0, (size_t)buf_len);
+	memset((void *)tz_buf, 0, (size_t)buf_len);
+
+
+	/* SCM call to TZ to get the tz log */
+	ret = qca_scm_tz_log(SCM_SVC_INFO, TZ_INFO_GET_DIAG_ID,
+					tz_buf, buf_len);
+	if (ret != 0) {
+		dprintf(CRITICAL, "Error in getting tz log\n");
+		goto err_scm;
+	}
+
+	ipq6018_diag_buf = (struct ipq6018_tzbsp_diag_t_v8 *)tz_buf;
+	ring = ipq6018_diag_buf->ring_off;
+	log = &ipq6018_diag_buf->log;
+
+	offset = log->log_pos.offset;
+	wrap = log->log_pos.wrap;
+
+	if (wrap != 0) {
+		memcpy(copy_buf, (tz_buf + offset + ring),
+			(buf_len - offset - ring));
+		memcpy(copy_buf + (buf_len - offset - ring),
+				(tz_buf + ring), offset);
+		copy_len = (buf_len - offset - ring) + offset;
+	}
+	else {
+		memcpy(copy_buf, (tz_buf + ring), offset);
+		copy_len = offset;
+	}
+
+	/* display buffer to console*/
+	dprintf(INFO, "TZ LOG:\n\n");
+	for (uint32_t i = 0; i < copy_len; i++) {
+		printf("%c", (char)*copy_buf);
+		copy_buf += 1;
+	}
+	printf("\n");
+
+err_scm:
+	free(tmp_buf);
+err_copybuf:
+	free(tz_buf);
+err_tzbuf:
+	return;
+}
 
 int target_is_emmc_boot(void)
 {
@@ -143,6 +252,7 @@ void target_sdc_init()
 	config.hs400_support = 0;
 	config.hs200_support = 0;
 	config.ddr_support = 0;
+	config.use_io_switch = 1;
 
 	if (!(mmc_dev = mmc_init(&config))) {
 		dprintf(CRITICAL, "mmc init failed!");
@@ -178,6 +288,9 @@ uint8_t i2c_read_reg(uint8_t addr, uint8_t reg, uint8_t *val, unsigned short len
 		if (err < 0) {
 			dprintf(INFO, "Read reg %x failed\n", err);
 			return err;
+		}
+		else {
+			ret = err & I2C_STATUS_ERROR_MASK;
 		}
 	} else {
 		dprintf(INFO, "eeprom_read_reg: qup_i2c_init() failed\n");
@@ -217,12 +330,53 @@ void i2c_write_reg(uint8_t addr, uint8_t reg, uint8_t *val, unsigned short len)
 
 void i2c_ipq6018_init(uint8_t blsp_id, uint8_t qup_id)
 {
-	dev = qup_blsp_i2c_init(blsp_id, qup_id, 400000, 19200000);
+	dev = qup_blsp_i2c_init(blsp_id, qup_id, 400000, 24000000);
 	if(!dev) {
 		dprintf(INFO, "qup_blsp_i2c_init() failed\n");
 		return;
 	}
-	i2c_qup_initialized = 1;
+	i2c_qup_initialized = qup_id;
+}
+
+static void initialize_crashdump(void)
+{
+	int ret;
+	ret = qca_scm_call_write(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
+				(uint32_t *)0x193D100, APPS_DLOAD_MAGIC);
+	if (ret)
+		dprintf(CRITICAL, "Error setting crashdump magic\n");
+}
+
+void reset_crashdump(bool sdi_only)
+{
+	int ret;
+
+	if (is_scm_armv8())
+		qca_scm_sdi_v8(SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID);
+
+	if(!sdi_only) {
+		ret = qca_scm_call_write(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
+				(uint32_t *)0x193D100, CLEAR_MAGIC);
+		if (ret) {
+			dprintf(CRITICAL, "Error resetting crashdump magic\n");
+			return;
+		}
+	}
+}
+
+static enum handler_return tzerr_irq_handler(void *arg)
+{
+	dprintf(CRITICAL, "NOC Error detected, Halting...\n");
+	display_tzlog();
+	halt();
+	return IRQ_HANDLED;
+}
+
+void enable_noc_error_detection(void)
+{
+	dprintf(INFO, "Enable tzerr IRQ\n");
+	register_int_handler(TZ_ERR_IRQ, tzerr_irq_handler, 0);
+	unmask_interrupt(TZ_ERR_IRQ);
 }
 
 void target_init(void)
@@ -235,6 +389,8 @@ void target_init(void)
 	dprintf(INFO, "board platform id is 0x%x\n",  platform_id);
 	dprintf(INFO, "board platform verson is 0x%x\n",  board_platform_ver());
 
+	initialize_crashdump();
+	enable_noc_error_detection();
 	target_sdc_init();
 	if (partition_read_table(mmc_host, (struct mmc_boot_card *)mmc_card))
 	{
@@ -254,53 +410,27 @@ crypto_engine_type board_ce_type(void)
 	return platform_ce_type;
 }
 
-static void reset_crashdump(void)
-{
-	if (is_scm_armv8())
-		qca_scm_sdi_v8(SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID);
-}
-
 void reboot_device(unsigned reboot_reason)
 {
 	writel(reboot_reason, RESTART_REASON_ADDR);
 
-	reset_crashdump();
+	if (reboot_reason == CDUMP_MODE) {
+		dprintf(INFO, "CDUMP mode enabled\n");
+		reset_crashdump(1);
+	} else {
+		reset_crashdump(0);
+	}
+
 	writel(0, GCNT_PSHOLD);
 	mdelay(10000);
 
 	dprintf(CRITICAL, "Rebooting failed\n");
 }
 
-int apps_iscrashed(void)
-{
-	uint32_t dmagic = readl(0x193D100);
-
-	if (dmagic == APPS_DLOAD_MAGIC)
-		return 1;
-
-	return 0;
-}
-
 unsigned check_reboot_mode(void)
 {
-	unsigned restart_reason = 0;
-	int ret;
+	unsigned restart_reason;
 
-	/*
-	 * The kernel did not shutdown properly in the previous boot.
-	 * The SBLs would not have loaded QSEE firmware, proceeding with
-	 * the boot is not possible. Reboot the system cleanly.
-	 */
-	if(apps_iscrashed()) {
-		ret = qca_scm_call_write(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
-					 (uint32_t *)0x193D100, CLEAR_MAGIC);
-		if (ret) {
-			dprintf(CRITICAL, "Error resetting crashdump magic\n");
-			return ret;
-		}
-		dprintf(INFO, "Apps Dload Magic set. Rebooting...\n");
-		reboot_device(0);
-	}
 	/* Read reboot reason and scrub it */
 	restart_reason = readl(RESTART_REASON_ADDR);
 	writel(0x00, RESTART_REASON_ADDR);
@@ -381,36 +511,50 @@ void target_usb_phy_init(void)
 	uint32_t pll_status;
 	uint32_t phy_base = USB30_PHY_1_QUSB2PHY_BASE;
 
-	/* Config user control register */
-	writel(0x0c80c010, USB30_1_GUCTL);
-
-	/* Enable USB2 PHY Power down */
-	setbits_le32(phy_base+0xB4, 0x1);
+	/* Enable QUSB2PHY Power down */
+	setbits_le32(phy_base + 0xB4, 0x1);
 
 	/* PHY Config Sequence */
-	setbits_le32(phy_base+0x80, 0xF8);
-	setbits_le32(phy_base+0x84, 0x83);
-	setbits_le32(phy_base+0x88, 0x83);
-	setbits_le32(phy_base+0x8C, 0xC0);
-	setbits_le32(phy_base+0x9C, 0x14);
-	setbits_le32(phy_base+0x08, 0x30);
-	setbits_le32(phy_base+0x0C, 0x79);
-	setbits_le32(phy_base+0x10, 0x21);
-	setbits_le32(phy_base+0x90, 0x00);
-	setbits_le32(phy_base+0x18, 0x00);
-	setbits_le32(phy_base+0x1C, 0x9F);
-	setbits_le32(phy_base+0x04, 0x80);
+	/* QUSB2PHY_PLL:PLL Feedback Divider Value */
+	writel(0x14, phy_base);
+	/* QUSB2PHY_PORT_TUNE1: USB Product Application Tuning Register A */
+	writel(0xF8, phy_base + 0x80);
+	/* QUSB2PHY_PORT_TUNE2: USB Product Application Tuning Register B */
+	writel(0xB3, phy_base + 0x84);
+	/* QUSB2PHY_PORT_TUNE3: USB Product Application Tuning Register C */
+	writel(0x83, phy_base + 0x88);
+	/* QUSB2PHY_PORT_TUNE4: USB Product Application Tuning Register D */
+	writel(0xC0, phy_base + 0x8C);
+	/* QUSB2PHY_PORT_TEST2 */
+	writel(0x14, phy_base + 0x9C);
+	/* QUSB2PHY_PLL_TUNE: PLL Test Configuration */
+	writel(0x30, phy_base + 0x08);
+	/* QUSB2PHY_PLL_USER_CTL1: PLL Control Configuration */
+	writel(0x79, phy_base + 0x0C);
+	/* QUSB2PHY_PLL_USER_CTL2: PLL Control Configuration */
+	writel(0x21, phy_base + 0x10);
+	/* QUSB2PHY_PORT_TUNE5 */
+	writel(0x00, phy_base + 0x90);
+	/* QUSB2PHY_PLL_PWR_CTL: PLL Manual SW Programming
+	 * and Biasing Power Options */
+	writel(0x00, phy_base + 0x18);
+	/* QUSB2PHY_PLL_AUTOPGM_CTL1: Auto vs. Manual PLL/Power-mode
+	 * programming State Machine Control Options */
+	writel(0x9F, phy_base + 0x1C);
+	/* QUSB2PHY_PLL_TEST: PLL Test Configuration-Disable diff ended clock */
+	writel(0x80, phy_base + 0x04);
 
-	/* Disable USB2 PHY Power down */
-	clrbits_le32(phy_base+0xB4, 0x1);
+	/* Disable QUSB2PHY Power down */
+	clrbits_le32(phy_base + 0xB4, 0x1);
 
 	mdelay(10);
 
-	setbits_le32(0x00079004, 0x80);
+	/* QUSB2PHY_PLL_TEST: PLL Test Configuration-Disable diff ended clock */
+	writel(0x80, phy_base + 0x04);
 	mdelay(10);
 
 	/* Get QUSB2PHY_PLL_STATUS */
-	pll_status = readl(0x00079038) & (1 << 5);
+	pll_status = readl(phy_base + 0x38) & (1 << 5);
 	if (!pll_status)
 		dprintf(INFO, "QUSB PHY PLL LOCK failed 0x%08x\n", readl(0x00079038));
 
@@ -523,13 +667,28 @@ static void target_crypto_init_params()
 	 * Do not do it again as the initialization address space
 	 * is locked.
 	 */
-	ce_params.do_bam_init      = 1;
+	ce_params.do_bam_init      = 0;
 
 	crypto_init_params(&ce_params);
 }
 
 #define uarg(x)		(argv[x].u)
 #define ullarg(x)	((unsigned long long)argv[x].u)
+
+static int cmd_fuseipq(int argc, const cmd_args *argv)
+{
+	uint32_t address, ret = -1;
+
+	if (argc != 2) {
+		printf("Invalid number of arguments\n");
+		printf("Command format: fuseipq <address>\n");
+		return 1;
+	}
+
+	address = uarg(1);
+	ret = fuseipq(address);
+	return ret;
+}
 
 static int cmd_hash_find(int argc, const cmd_args *argv)
 {
@@ -570,15 +729,23 @@ usage:
 	if (!strcmp(argv[1].str, "probe")) {
 		unsigned int j;
 		uint8_t val;
+		uint8_t qup_id = QUP_ID_5;
 
-		if (!i2c_qup_initialized)
-			i2c_ipq6018_init(BLSP_ID_1, QUP_ID_1);
+		if (argc > 2) {
+			if (argv[2].u == QUP_ID_2 || argv[2].u == QUP_ID_5)
+				qup_id = argv[2].u;
+			else
+				printf("QUP id allowed are %d & %d using default %d\n",
+							QUP_ID_2, QUP_ID_5, qup_id);
+		}
+
+		if (i2c_qup_initialized != qup_id)
+			i2c_ipq6018_init(BLSP_ID_1, qup_id);
 
 		for (j = 0; j < 128; j++) {
 			if (i2c_read_reg(j, 0, &val, 1) == 0)
-				printf(" %02X", j);
+				dprintf(INFO, "I2C slave addr: 0x%x CONNECTED !!!!\n", j);
 		}
-		dprintf(INFO, "\n");
 	} else if (!strcmp(argv[1].str, "read")) {
 		unsigned *ptr = (unsigned *)argv[2].u;
 		uint8_t i2c_address = argv[3].u;
@@ -631,5 +798,6 @@ usage:
 
 STATIC_COMMAND_START
 	{ "i2c", "i2c probe/read/write commands", &cmd_i2c },
-        { "hash", "Find Hash", &cmd_hash_find },
+	{ "hash", "Find Hash", &cmd_hash_find },
+	{ "fuseipq", "fuse QFPROM registers from memory\n", &cmd_fuseipq },
 STATIC_COMMAND_END(hash);

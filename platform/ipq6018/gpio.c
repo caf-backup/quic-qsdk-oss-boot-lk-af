@@ -113,9 +113,13 @@ void gpio_config_blsp_i2c(uint8_t blsp_id, uint8_t qup_id)
 {
 	if (blsp_id == BLSP_ID_1) {
 		switch (qup_id) {
-		case QUP_ID_1:
+		case QUP_ID_2:
 			gpio_tlmm_config(42, 2, 0, GPIO_NO_PULL, GPIO_8MA, GPIO_OE_ENABLE, 0, 0, 0);
 			gpio_tlmm_config(43, 2, 0, GPIO_NO_PULL, GPIO_8MA, GPIO_OE_ENABLE, 0, 0, 0);
+		break;
+		case QUP_ID_5:
+			gpio_tlmm_config(46, 1, 0, GPIO_NO_PULL, GPIO_8MA, GPIO_OE_ENABLE, 0, 0, 0);
+			gpio_tlmm_config(47, 1, 0, GPIO_NO_PULL, GPIO_8MA, GPIO_OE_ENABLE, 0, 0, 0);
 		break;
 		default:
 			dprintf(CRITICAL, "Configure gpios for QUP instance: %u\n",
