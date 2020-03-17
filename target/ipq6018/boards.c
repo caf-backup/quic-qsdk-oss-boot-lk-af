@@ -262,7 +262,7 @@ int set_uuid_bootargs(char *boot_args, char *part_name, int buflen, bool gpt_fla
 	boot_args += len;
 	buflen -= len;
 
-	if (gpt_flag && (len = strlcpy(boot_args, " gpt rootwait nosmp", buflen)) >= buflen)
+	if (gpt_flag && (len = strlcpy(boot_args, " gpt rootwait", buflen)) >= buflen)
 		return ERR_INVALID_ARGS;
 
 	return 0;
