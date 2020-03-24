@@ -1536,7 +1536,3 @@ void fdt_fixup_version(void *fdt)
 
 	return;
 }
-int update_uuid(char *bootargs)
-{
-	return 0;
-}
