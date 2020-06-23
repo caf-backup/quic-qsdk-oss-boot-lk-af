@@ -8,18 +8,10 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
-#ifdef USE_HOSTCC
-#include <arpa/inet.h>
-#else
-#include <common.h>
-#endif
-#include <compiler.h>
-#include <u-boot/crc.h>
-
 #if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
 #include <watchdog.h>
 #endif
-#include "u-boot/zlib.h"
+#include "zutil.h"
 
 #define local static
 #define ZEXPORT	/* empty */
@@ -227,7 +219,7 @@ const uint32_t * ZEXPORT get_crc_table()
 /* No ones complement version. JFFS2 (and other things ?)
  * don't use ones compliment in their CRC calculations.
  */
-uint32_t ZEXPORT crc32_no_comp(uint32_t crc, const Bytef *buf, uInt len)
+uLong ZEXPORT crc32_no_comp(uLong crc, const Bytef *buf, uInt len)
 {
     const uint32_t *tab = crc_table;
     const uint32_t *b =(const uint32_t *)buf;
@@ -269,7 +261,7 @@ uint32_t ZEXPORT crc32_no_comp(uint32_t crc, const Bytef *buf, uInt len)
 }
 #undef DO_CRC
 
-uint32_t ZEXPORT crc32 (uint32_t crc, const Bytef *p, uInt len)
+uLong ZEXPORT crc32_zlib (uLong crc, const Bytef *p, uInt len)
 {
      return crc32_no_comp(crc ^ 0xffffffffL, p, len) ^ 0xffffffffL;
 }
@@ -292,12 +284,12 @@ uint32_t ZEXPORT crc32_wd (uint32_t crc,
 		chunk = end - curr;
 		if (chunk > chunk_sz)
 			chunk = chunk_sz;
-		crc = crc32 (crc, curr, chunk);
+		crc = crc32_zlib (crc, curr, chunk);
 		curr += chunk;
 		WATCHDOG_RESET ();
 	}
 #else
-	crc = crc32 (crc, buf, len);
+	crc = crc32_zlib (crc, buf, len);
 #endif
 
 	return crc;
@@ -310,5 +302,5 @@ void crc32_wd_buf(const unsigned char *input, unsigned int ilen,
 
 	crc = crc32_wd(0, input, ilen, chunk_sz);
 	crc = htonl(crc);
-	memcpy(output, &crc, sizeof(crc));
+	zmemcpy(output, &crc, sizeof(crc));
 }

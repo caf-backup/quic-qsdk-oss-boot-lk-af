@@ -92,7 +92,7 @@ local int read_buf        OF((z_streamp strm, Bytef *buf, unsigned size));
 local uInt longest_match  OF((deflate_state *s, IPos cur_match));
 #endif
 
-#ifdef DEBUG
+#ifdef ZLIB_DEBUG
 local  void check_match OF((deflate_state *s, IPos start, IPos match,
                             int length));
 #endif
@@ -374,7 +374,7 @@ int ZEXPORT deflateReset (strm)
     s->status = s->wrap ? INIT_STATE : BUSY_STATE;
     strm->adler =
 #ifdef GZIP
-        s->wrap == 2 ? crc32(0L, Z_NULL, 0) :
+        s->wrap == 2 ? crc32_zlib(0L, Z_NULL, 0) :
 #endif
         adler32(0L, Z_NULL, 0);
     s->last_flush = Z_NO_FLUSH;
@@ -607,7 +607,7 @@ int ZEXPORT deflate (strm, flush)
 	hdr = 1;
 #ifdef GZIP
         if (s->wrap == 2) {
-            strm->adler = crc32(0L, Z_NULL, 0);
+            strm->adler = crc32_zlib(0L, Z_NULL, 0);
             put_byte(s, 31);
             put_byte(s, 139);
             put_byte(s, 8);
@@ -643,7 +643,7 @@ int ZEXPORT deflate (strm, flush)
                     put_byte(s, (s->gzhead->extra_len >> 8) & 0xff);
                 }
                 if (s->gzhead->hcrc)
-                    strm->adler = crc32(strm->adler, s->pending_buf,
+                    strm->adler = crc32_zlib(strm->adler, s->pending_buf,
                                         s->pending);
                 s->gzindex = 0;
                 s->status = EXTRA_STATE;
@@ -686,7 +686,7 @@ int ZEXPORT deflate (strm, flush)
             while (s->gzindex < (s->gzhead->extra_len & 0xffff)) {
                 if (s->pending == s->pending_buf_size) {
                     if (s->gzhead->hcrc && s->pending > beg)
-                        strm->adler = crc32(strm->adler, s->pending_buf + beg,
+                        strm->adler = crc32_zlib(strm->adler, s->pending_buf + beg,
                                             s->pending - beg);
                     flush_pending(strm);
                     beg = s->pending;
@@ -697,7 +697,7 @@ int ZEXPORT deflate (strm, flush)
                 s->gzindex++;
             }
             if (s->gzhead->hcrc && s->pending > beg)
-                strm->adler = crc32(strm->adler, s->pending_buf + beg,
+                strm->adler = crc32_zlib(strm->adler, s->pending_buf + beg,
                                     s->pending - beg);
             if (s->gzindex == s->gzhead->extra_len) {
                 s->gzindex = 0;
@@ -715,7 +715,7 @@ int ZEXPORT deflate (strm, flush)
             do {
                 if (s->pending == s->pending_buf_size) {
                     if (s->gzhead->hcrc && s->pending > beg)
-                        strm->adler = crc32(strm->adler, s->pending_buf + beg,
+                        strm->adler = crc32_zlib(strm->adler, s->pending_buf + beg,
                                             s->pending - beg);
                     flush_pending(strm);
                     beg = s->pending;
@@ -728,7 +728,7 @@ int ZEXPORT deflate (strm, flush)
                 put_byte(s, val);
             } while (val != 0);
             if (s->gzhead->hcrc && s->pending > beg)
-                strm->adler = crc32(strm->adler, s->pending_buf + beg,
+                strm->adler = crc32_zlib(strm->adler, s->pending_buf + beg,
                                     s->pending - beg);
             if (val == 0) {
                 s->gzindex = 0;
@@ -746,7 +746,7 @@ int ZEXPORT deflate (strm, flush)
             do {
                 if (s->pending == s->pending_buf_size) {
                     if (s->gzhead->hcrc && s->pending > beg)
-                        strm->adler = crc32(strm->adler, s->pending_buf + beg,
+                        strm->adler = crc32_zlib(strm->adler, s->pending_buf + beg,
                                             s->pending - beg);
                     flush_pending(strm);
                     beg = s->pending;
@@ -759,7 +759,7 @@ int ZEXPORT deflate (strm, flush)
                 put_byte(s, val);
             } while (val != 0);
             if (s->gzhead->hcrc && s->pending > beg)
-                strm->adler = crc32(strm->adler, s->pending_buf + beg,
+                strm->adler = crc32_zlib(strm->adler, s->pending_buf + beg,
                                     s->pending - beg);
             if (val == 0)
                 s->status = HCRC_STATE;
@@ -774,7 +774,7 @@ int ZEXPORT deflate (strm, flush)
             if (s->pending + 2 <= s->pending_buf_size) {
                 put_byte(s, (Byte)(strm->adler & 0xff));
                 put_byte(s, (Byte)((strm->adler >> 8) & 0xff));
-                strm->adler = crc32(0L, Z_NULL, 0);
+                strm->adler = crc32_zlib(0L, Z_NULL, 0);
                 s->status = BUSY_STATE;
             }
         }
@@ -1015,7 +1015,7 @@ local int read_buf(strm, buf, size)
     }
 #ifdef GZIP
     else if (strm->state->wrap == 2) {
-        strm->adler = crc32(strm->adler, strm->next_in, len);
+        strm->adler = crc32_zlib(strm->adler, strm->next_in, len);
     }
 #endif
     zmemcpy(buf, strm->next_in, len);
@@ -1273,7 +1273,7 @@ local uInt longest_match(s, cur_match)
 
 #endif /* FASTEST */
 
-#ifdef DEBUG
+#ifdef ZLIB_DEBUG
 /* ===========================================================================
  * Check that the match at match_start is indeed a match.
  */
