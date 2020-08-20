@@ -26,8 +26,6 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define NO_GZIP
-
 #include "zutil.h"
 
 #ifdef DYNAMIC_CRC_TABLE
