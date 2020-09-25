@@ -1967,6 +1967,7 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 {
 	unsigned kernel_actual;
 	unsigned ramdisk_actual;
+	unsigned second_actual;
 	uint32_t image_actual;
 	uint32_t dt_actual = 0;
 	struct boot_img_hdr *hdr;
@@ -1990,12 +1991,14 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 
 	kernel_actual = ROUND_TO_PAGE(hdr->kernel_size, page_mask);
 	ramdisk_actual = ROUND_TO_PAGE(hdr->ramdisk_size, page_mask);
+	second_actual = ROUND_TO_PAGE(hdr->second_size, page_mask);
 #if DEVICE_TREE
 	dt_actual = ROUND_TO_PAGE(hdr->dt_size, page_mask);
 #endif
 
 	image_actual = ADD_OF(page_size, kernel_actual);
 	image_actual = ADD_OF(image_actual, ramdisk_actual);
+	image_actual = ADD_OF(image_actual, second_actual);
 	image_actual = ADD_OF(image_actual, dt_actual);
 
 	/* sz should have atleast raw boot image */
