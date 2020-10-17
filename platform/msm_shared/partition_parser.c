@@ -466,7 +466,7 @@ static unsigned int write_mbr_in_blocks(unsigned size, unsigned char *mbrImage)
 	dfirstsec = 0;
 	dprintf(SPEW, "first EBR to be written at sector 0x%X\n", dfirstsec);
 	lastAddress = mbrImage + size;
-	while (ebrImage < lastAddress) {
+	while ((ebrImage + BLOCK_SIZE) < lastAddress) {
 		dprintf(SPEW, "writing to 0x%X\n",
 			(ebrSectorOffset + dfirstsec) * BLOCK_SIZE);
 		ret =
