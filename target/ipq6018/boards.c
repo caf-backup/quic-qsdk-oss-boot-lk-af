@@ -185,10 +185,26 @@ void update_usb_mode(void *fdt)
 	return;
 }
 
+#define DLOAD_DISABLE	0x1
 void fdt_fixup_atf(void *fdt)
 {
 	uint32_t value;
 	int offset, ret;
+	uint32_t dload = htonl(DLOAD_DISABLE);
+
+	/* Set the dload_status to DLOAD_DISABLE */
+	offset = fdt_path_offset(fdt, "/soc/qca,scm_restart_reason");
+	if (offset < 0) {
+		offset = fdt_path_offset(fdt, "/qti,scm_restart_reason");
+	}
+
+	if (offset >= 0) {
+		ret = fdt_setprop(fdt, offset, "dload_status",
+					&dload, sizeof(dload));
+		if (ret) {
+			dprintf(CRITICAL, "unable to set dload_status\n");
+		}
+	}
 
 	value = readl(ATF_FUSE);
 	if (value & ATF_ENABLED) {

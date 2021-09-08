@@ -92,6 +92,16 @@ static int apps_iscrashed(void)
 	return 0;
 }
 
+static int apps_iscrashed_crashdump_disabled(void)
+{
+	uint32_t dmagic = readl(0x193D100);
+
+	if (dmagic == APPS_DLOAD_DISABLED)
+		return 1;
+
+	return 0;
+}
+
 void platform_early_init(void)
 {
 	msm_clocks_init();
@@ -112,7 +122,12 @@ void platform_init(void)
 		reset_crashdump(0);
 		dprintf(INFO, "Apps Dload Magic set. Rebooting...\n");
 		reboot_device(0);
+	} else if (apps_iscrashed_crashdump_disabled()) {
+		reset_crashdump(0);
+		dprintf(CRITICAL, "Crashdump disabled, resetting the board..\n");
+		reboot_device(0);
 	}
+
 }
 
 void platform_uninit(void)
